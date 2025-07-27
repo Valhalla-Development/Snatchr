@@ -1,4 +1,4 @@
-use yt_dlp::model::{VideoQuality, VideoCodecPreference, AudioQuality, AudioCodecPreference};
+use yt_dlp::model::{AudioCodecPreference, AudioQuality, VideoCodecPreference, VideoQuality};
 
 pub struct Config {
     pub port: u16,
@@ -20,8 +20,8 @@ impl Config {
             audio_codec: AudioCodecPreference::Opus,
         }
     }
-    
+
     pub fn address(&self) -> String {
         format!("{}:{}", self.host, self.port)
     }
-} 
+}

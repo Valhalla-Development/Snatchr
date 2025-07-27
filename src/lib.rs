@@ -1,4 +1,8 @@
-use axum::{response::Html, routing::{get, post}, Router};
+use axum::{
+    Router,
+    response::Html,
+    routing::{get, post},
+};
 use tokio::net::TcpListener;
 
 mod config;
@@ -18,7 +22,7 @@ pub async fn run_server() {
     let listener = TcpListener::bind(&config.address()).await.unwrap();
 
     println!("Server is running on http://{}", config.address());
-    
+
     axum::serve(listener, app).await.unwrap();
 }
 
