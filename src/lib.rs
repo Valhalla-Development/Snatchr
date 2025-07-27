@@ -7,6 +7,8 @@ use config::Config;
 mod routes;
 use routes::download::download_handler;
 
+mod handlers;
+
 pub async fn run_server() {
     let config = Config::new();
     let app = Router::new()
