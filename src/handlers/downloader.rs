@@ -57,12 +57,19 @@ pub async fn download_video(
 
     let fetcher = init_yt_dlp().await?;
 
-    println!("Downloading video...");
+    let video = fetcher.fetch_video_infos(url.clone()).await?;
+
+    let job_dir = PathBuf::from(&config.download_dir).join(&job_id);
+    std::fs::create_dir_all(&job_dir)?;
+
+    let filename = format!("{}.mp4", video.title);
+
+    let relative_path = format!("{}/{}", job_id, filename);
 
     let video_path = fetcher
         .download_video_with_quality(
             url.clone(),
-            format!("{}.mp4", job_id),
+            relative_path,
             config.video_quality,
             config.video_codec,
             config.audio_quality,
