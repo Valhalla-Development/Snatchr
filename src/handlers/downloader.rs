@@ -71,8 +71,6 @@ pub async fn download_video(
         )
         .await?;
 
-    println!("Download completed: {:?}", video_path);
-
     Ok(video_path)
 }
 
