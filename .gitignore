@@ -14,6 +14,8 @@
 # Downloaded files (temporary storage)
 /downloads/*
 !/downloads/.gitkeep
+# yt-dlp binaries
+/libs/*
 
 # ========================
 # IDEs and editors
