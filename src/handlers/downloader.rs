@@ -2,7 +2,7 @@ use yt_dlp::Youtube;
 use std::path::PathBuf;
 use uuid::Uuid;
 use yt_dlp::fetcher::download_manager::ManagerConfig;
-use yt_dlp::fetcher::deps::Libraries;
+use yt_dlp::fetcher::deps::{Libraries, LibraryInstaller};
 use crate::config::Config;
 
 #[derive(Debug)]
@@ -32,8 +32,11 @@ pub async fn init_yt_dlp() -> Result<Youtube, Box<dyn std::error::Error>> {
     let libraries_dir = PathBuf::from("libs");
     let output_dir = PathBuf::from("downloads");
     
-    let youtube = libraries_dir.join("yt-dlp");
-    let ffmpeg = libraries_dir.join("ffmpeg");
+    let installer = LibraryInstaller::new(libraries_dir.clone());
+    
+    let youtube = installer.install_youtube(None).await?;
+    
+    let ffmpeg = installer.install_ffmpeg(None).await?;
     
     let libraries = Libraries::new(youtube, ffmpeg);
     
@@ -43,11 +46,14 @@ pub async fn init_yt_dlp() -> Result<Youtube, Box<dyn std::error::Error>> {
 }
 
 pub async fn download_video(url: String, job_id: String) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    println!("Starting download for URL: {}", url);
+    
     let config = Config::new();
 
     let fetcher = init_yt_dlp().await?;
 
     let video = fetcher.fetch_video_infos(url.clone()).await?;
+    println!("Video info fetched successfully");
 
     let video_path = fetcher.download_video_with_quality(
         url.clone(),
@@ -58,11 +64,14 @@ pub async fn download_video(url: String, job_id: String) -> Result<PathBuf, Box<
         config.audio_codec
     ).await?;
 
-    println!("Final download status: {:?}", video_path);
+    println!("Download completed: {:?}", video_path);
 
     Ok(video_path)
 }
 
 pub async fn start_background_download(url: String, job_id: String) {
-    // TODO
+    match download_video(url, job_id).await {
+        Ok(path) => println!("Download completed: {:?}", path),
+        Err(e) => println!("Download failed: {:?}", e),
+    }
 }
