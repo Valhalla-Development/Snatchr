@@ -14,7 +14,7 @@ use routes::download::download_handler;
 mod handlers;
 
 pub async fn run_server() {
-    let config = Config::new();
+    let config = Config::from_env();
     let app = Router::new()
         .route("/", get(hello_world))
         .route("/download", post(download_handler));
