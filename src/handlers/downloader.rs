@@ -5,6 +5,8 @@ use yt_dlp::Youtube;
 use yt_dlp::fetcher::deps::{Libraries, LibraryInstaller};
 use yt_dlp::fetcher::download_manager::ManagerConfig;
 extern crate sanitize_filename;
+use std::time::{Duration, Instant};
+use tracing::{error, info};
 
 #[derive(Debug)]
 pub struct DownloadJob {
@@ -51,21 +53,36 @@ pub async fn init_yt_dlp() -> Result<Youtube, Box<dyn std::error::Error>> {
 pub async fn download_video(
     url: String,
     job_id: String,
-) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    println!("Starting download for URL: {}", url);
+) -> Result<(PathBuf, Duration), Box<dyn std::error::Error>> {
+    let start = Instant::now();
+
+    info!(job_id = %job_id, url = %url, "Starting download job");
 
     let config = Config::from_env();
 
+    info!(job_id = %job_id, "Initializing yt-dlp fetcher");
     let fetcher = init_yt_dlp().await?;
 
+    info!(job_id = %job_id, url = %url, "Fetching video info");
     let video = fetcher.fetch_video_infos(url.clone()).await?;
+
+    info!(job_id = %job_id, video_title = %video.title, "Video info fetched");
 
     let job_dir = PathBuf::from(&config.download_dir).join(&job_id);
     std::fs::create_dir_all(&job_dir)?;
+    info!(job_id = %job_id, path = ?job_dir, "Created job directory");
 
     let filename = format!("{}.mp4", video.title);
-
     let relative_path = format!("{}/{}", job_id, sanitize_filename::sanitize(&filename));
+
+    info!(
+        job_id = %job_id,
+        quality = ?config.video_quality,
+        video_codec = ?config.video_codec,
+        audio_quality = ?config.audio_quality,
+        audio_codec = ?config.audio_codec,
+        "Starting download with specified quality and codecs"
+    );
 
     let video_path = fetcher
         .download_video_with_quality(
@@ -78,12 +95,21 @@ pub async fn download_video(
         )
         .await?;
 
-    Ok(video_path)
+    let duration = start.elapsed();
+
+    Ok((video_path, duration))
 }
 
 pub async fn start_background_download(url: String, job_id: String) {
-    match download_video(url, job_id).await {
-        Ok(path) => println!("Download completed: {:?}", path),
-        Err(e) => println!("Download failed: {:?}", e),
+    match download_video(url, job_id.clone()).await {
+        Ok((path, duration)) => {
+            info!(
+                job_id = %job_id,
+                path = %path.display(),
+                duration = format_args!("{:.2}s", duration.as_secs_f64()),
+                "Download completed successfully"
+            )
+        }
+        Err(e) => error!(job_id = %job_id, error = %e, "Download job failed"),
     }
 }
