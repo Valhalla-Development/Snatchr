@@ -4,6 +4,7 @@ use uuid::Uuid;
 use yt_dlp::Youtube;
 use yt_dlp::fetcher::deps::{Libraries, LibraryInstaller};
 use yt_dlp::fetcher::download_manager::ManagerConfig;
+extern crate sanitize_filename;
 
 #[derive(Debug)]
 pub struct DownloadJob {
@@ -64,7 +65,7 @@ pub async fn download_video(
 
     let filename = format!("{}.mp4", video.title);
 
-    let relative_path = format!("{}/{}", job_id, filename);
+    let relative_path = format!("{}/{}", job_id, sanitize_filename::sanitize(&filename));
 
     let video_path = fetcher
         .download_video_with_quality(
