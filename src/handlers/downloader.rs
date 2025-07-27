@@ -60,23 +60,25 @@ pub async fn download_video(
 
     let config = Config::from_env();
 
-    info!(job_id = %job_id, "Initializing yt-dlp fetcher");
+    info!(job_id = %job_id, url = %url, "Initializing yt-dlp fetcher");
     let fetcher = init_yt_dlp().await?;
 
     info!(job_id = %job_id, url = %url, "Fetching video info");
     let video = fetcher.fetch_video_infos(url.clone()).await?;
 
-    info!(job_id = %job_id, video_title = %video.title, "Video info fetched");
+    info!(job_id = %job_id, url = %url, video_title = %video.title, "Video info fetched");
 
     let job_dir = PathBuf::from(&config.download_dir).join(&job_id);
     std::fs::create_dir_all(&job_dir)?;
-    info!(job_id = %job_id, path = ?job_dir, "Created job directory");
+    info!(job_id = %job_id, url = %url, path = %job_dir.display(), "Created job directory");
 
     let filename = format!("{}.mp4", video.title);
     let relative_path = format!("{}/{}", job_id, sanitize_filename::sanitize(&filename));
 
     info!(
         job_id = %job_id,
+        url = %url,
+        video_title = %video.title,
         quality = ?config.video_quality,
         video_codec = ?config.video_codec,
         audio_quality = ?config.audio_quality,
@@ -101,15 +103,22 @@ pub async fn download_video(
 }
 
 pub async fn start_background_download(url: String, job_id: String) {
-    match download_video(url, job_id.clone()).await {
+    match download_video(url.clone(), job_id.clone()).await {
         Ok((path, duration)) => {
             info!(
                 job_id = %job_id,
+                url = %url,
                 path = %path.display(),
                 duration = format_args!("{:.2}s", duration.as_secs_f64()),
                 "Download completed successfully"
             )
         }
-        Err(e) => error!(job_id = %job_id, error = %e, "Download job failed"),
+        Err(e) => error!(
+            job_id = %job_id,
+            url = %url,
+            error = %e,
+            error_source = ?e.source(),
+            "Download job failed"
+        ),
     }
 }
