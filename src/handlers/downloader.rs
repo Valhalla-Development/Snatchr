@@ -21,8 +21,10 @@ pub enum DownloadStatus {
 }
 
 pub async fn init_yt_dlp() -> Result<Youtube, Box<dyn std::error::Error>> {
+    let app_config = Config::from_env();
+
     let config = ManagerConfig {
-        max_concurrent_downloads: 5,       // Maximum 5 concurrent downloads
+        max_concurrent_downloads: app_config.max_concurrent_downloads,
         segment_size: 1024 * 1024 * 10,    // 10 MB per segment
         parallel_segments: 8,              // 8 parallel segments per download
         retry_attempts: 5,                 // 5 retry attempts on failure
@@ -30,7 +32,7 @@ pub async fn init_yt_dlp() -> Result<Youtube, Box<dyn std::error::Error>> {
     };
 
     let libraries_dir = PathBuf::from("libs");
-    let output_dir = PathBuf::from("downloads");
+    let output_dir = PathBuf::from(&app_config.download_dir);
 
     let installer = LibraryInstaller::new(libraries_dir.clone());
 
@@ -51,7 +53,7 @@ pub async fn download_video(
 ) -> Result<PathBuf, Box<dyn std::error::Error>> {
     println!("Starting download for URL: {}", url);
 
-    let config = Config::new();
+    let config = Config::from_env();
 
     let fetcher = init_yt_dlp().await?;
 
