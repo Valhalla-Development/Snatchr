@@ -1,0 +1,24 @@
+# ========================
+# System generated files
+# ========================
+
+# macOS generated files
+.DS_Store
+
+# ========================
+# Build output
+# ========================
+
+# Rust build artifacts
+/target/
+# Downloaded files (temporary storage)
+/downloads/*
+!/downloads/.gitkeep
+
+# ========================
+# IDEs and editors
+# ========================
+
+# IDE files (e.g., WebStorm, IntelliJ)
+.idea/
+.vscode/
