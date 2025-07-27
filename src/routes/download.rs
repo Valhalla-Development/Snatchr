@@ -14,6 +14,7 @@
 
 use axum::{Json, response::Result};
 use serde::{Deserialize, Serialize};
+use tokio::time::{Duration, timeout};
 use uuid::Uuid;
 
 use crate::config::Config;
@@ -35,15 +36,17 @@ pub async fn download_handler(
 ) -> Result<Json<DownloadResponse>> {
     let job_id = Uuid::new_v4().to_string();
     let url = payload.url.clone();
+    let config = Config::from_env();
 
     // Run the download_video function on a blocking thread since it performs sync operations
-    let (file_path, _duration) =
-        tokio::task::spawn_blocking(move || download_video(url, job_id).map_err(|e| e.to_string()))
-            .await
-            .map_err(|e| format!("Task join error: {}", e))? // Handle task join errors
-            .map_err(|e| format!("Download error: {}", e))?; // Handle download errors
-
-    let config = Config::from_env();
+    let (file_path, _duration) = timeout(
+        Duration::from_secs(config.timeout_seconds as u64),
+        tokio::task::spawn_blocking(move || download_video(url, job_id).map_err(|e| e.to_string())),
+    )
+    .await
+    .map_err(|_| "Download timeout".to_string())? // Handle timeout errors
+    .map_err(|e| format!("Task join error: {}", e))? // Handle task join errors
+    .map_err(|e| format!("Download error: {}", e))?; // Handle download errors
 
     // Create a relative file URL by stripping the base download directory from the absolute path
     let file_url = format!(
