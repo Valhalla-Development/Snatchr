@@ -19,8 +19,6 @@ pub async fn download_handler(
 ) -> Result<Json<DownloadResponse>> {
     let job_id = Uuid::new_v4().to_string();
 
-    println!("Starting download for job: {}", job_id);
-
     let url = payload.url.clone();
     let job_id_clone = job_id.clone();
 
