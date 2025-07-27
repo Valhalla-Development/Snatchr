@@ -23,13 +23,8 @@ pub async fn download_handler(Json(payload): Json<DownloadRequest>) -> Result<Js
     let job_id_clone = job_id.clone();
     
     tokio::task::spawn_blocking(move || {
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async move {
-            match crate::handlers::downloader::download_video(url, job_id_clone).await {
-                Ok(path) => println!("Download completed: {:?}", path),
-                Err(e) => println!("Download failed: {:?}", e),
-            }
-        });
+        let rt = tokio::runtime::Handle::current();
+        rt.block_on(start_background_download(url, job_id_clone));
     });
 
     Ok(Json(DownloadResponse { job_id }))
