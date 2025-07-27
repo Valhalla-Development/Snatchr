@@ -3,6 +3,7 @@ use std::env;
 use strum_macros::{EnumIter, EnumString};
 use yt_dlp::model::{AudioCodecPreference, AudioQuality, VideoCodecPreference, VideoQuality};
 
+// Environment-parseable enums (with FromStr via strum)
 #[derive(Debug, EnumString, EnumIter)]
 #[strum(serialize_all = "PascalCase")]
 pub enum VideoQualityEnv {
@@ -90,65 +91,88 @@ impl From<AudioCodecPreferenceEnv> for AudioCodecPreference {
 
 #[derive(Debug)]
 pub struct Config {
+    // Server
     pub port: u16,
     pub host: String,
+
+    // Download paths & cleanup
+    pub download_dir: String,
+    pub cleanup_after_minutes: u64,
+
+    // Quality settings
     pub video_quality: VideoQuality,
     pub video_codec: VideoCodecPreference,
     pub audio_quality: AudioQuality,
     pub audio_codec: AudioCodecPreference,
+
+    // Performance
+    pub max_concurrent_downloads: usize,
+    pub timeout_seconds: u64,
 }
 
-impl Config {
-    pub fn new() -> Self {
+impl Default for Config {
+    fn default() -> Self {
         Self {
             port: 3000,
             host: "127.0.0.1".to_string(),
+            download_dir: "./downloads".to_string(),
+            cleanup_after_minutes: 10,
             video_quality: VideoQuality::Best,
             video_codec: VideoCodecPreference::VP9,
             audio_quality: AudioQuality::Best,
             audio_codec: AudioCodecPreference::Opus,
+            max_concurrent_downloads: 5,
+            timeout_seconds: 300, // 5 minutes
         }
     }
+}
 
-    fn parse_env_enum<T, U>(key: &str, default: T) -> U
-    where
-        T: std::str::FromStr,
-        U: From<T>,
-    {
-        let env_val = env::var(key)
-            .ok()
-            .and_then(|v| v.parse::<T>().ok())
-            .unwrap_or_else(|| default);
-
-        env_val.into()
-    }
-
+impl Config {
     pub fn from_env() -> Self {
         dotenv().ok();
+        let default = Self::default();
 
-        let port = env::var("PORT")
-            .ok()
-            .and_then(|v| v.parse::<u16>().ok())
-            .unwrap_or(3000);
-
-        let host = env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
-
-        let video_quality = Self::parse_env_enum("VIDEO_QUALITY", VideoQualityEnv::Worst);
-        let video_codec = Self::parse_env_enum("VIDEO_CODEC", VideoCodecPreferenceEnv::Any);
-        let audio_quality = Self::parse_env_enum("AUDIO_QUALITY", AudioQualityEnv::Worst);
-        let audio_codec = Self::parse_env_enum("AUDIO_CODEC", AudioCodecPreferenceEnv::Any);
-
-        Config {
-            port,
-            host,
-            video_quality,
-            video_codec,
-            audio_quality,
-            audio_codec,
+        Self {
+            port: parse_env("PORT", default.port),
+            host: parse_env("HOST", default.host),
+            download_dir: parse_env("DOWNLOAD_DIR", default.download_dir),
+            cleanup_after_minutes: parse_env(
+                "CLEANUP_AFTER_MINUTES",
+                default.cleanup_after_minutes,
+            ),
+            video_quality: parse_env_enum("VIDEO_QUALITY", VideoQualityEnv::Best).into(),
+            video_codec: parse_env_enum("VIDEO_CODEC", VideoCodecPreferenceEnv::VP9).into(),
+            audio_quality: parse_env_enum("AUDIO_QUALITY", AudioQualityEnv::Best).into(),
+            audio_codec: parse_env_enum("AUDIO_CODEC", AudioCodecPreferenceEnv::Opus).into(),
+            max_concurrent_downloads: parse_env(
+                "MAX_CONCURRENT_DOWNLOADS",
+                default.max_concurrent_downloads,
+            ),
+            timeout_seconds: parse_env("TIMEOUT_SECONDS", default.timeout_seconds),
         }
     }
 
     pub fn address(&self) -> String {
         format!("{}:{}", self.host, self.port)
     }
+}
+
+fn parse_env<T>(key: &str, default: T) -> T
+where
+    T: std::str::FromStr + Clone,
+{
+    env::var(key)
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(default)
+}
+
+fn parse_env_enum<T>(key: &str, default: T) -> T
+where
+    T: std::str::FromStr,
+{
+    env::var(key)
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(default)
 }
