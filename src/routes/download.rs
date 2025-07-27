@@ -1,4 +1,4 @@
-use axum::Json;
+use axum::{Json, response::Result};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -14,12 +14,23 @@ pub struct DownloadResponse {
     job_id: String,
 }
 
-pub async fn download_handler(payload: Json<DownloadRequest>) -> Json<DownloadResponse> {
+pub async fn download_handler(Json(payload): Json<DownloadRequest>) -> Result<Json<DownloadResponse>> {
     let job_id = Uuid::new_v4().to_string();
     
-    start_background_download(payload.url.clone(), job_id.clone()).await;
+    println!("Starting download for job: {}", job_id);
+    
+    let url = payload.url.clone();
+    let job_id_clone = job_id.clone();
+    
+    tokio::task::spawn_blocking(move || {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async move {
+            match crate::handlers::downloader::download_video(url, job_id_clone).await {
+                Ok(path) => println!("Download completed: {:?}", path),
+                Err(e) => println!("Download failed: {:?}", e),
+            }
+        });
+    });
 
-    let res = Json(DownloadResponse { job_id });
-
-    res
+    Ok(Json(DownloadResponse { job_id }))
 }
