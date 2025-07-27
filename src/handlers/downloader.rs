@@ -1,27 +1,11 @@
 use crate::config::Config;
 use std::path::PathBuf;
-use uuid::Uuid;
 use yt_dlp::Youtube;
 use yt_dlp::fetcher::deps::{Libraries, LibraryInstaller};
 use yt_dlp::fetcher::download_manager::ManagerConfig;
 extern crate sanitize_filename;
 use std::time::{Duration, Instant};
 use tracing::{error, info};
-
-#[derive(Debug)]
-pub struct DownloadJob {
-    job_id: String,
-    status: bool,
-    file_path: PathBuf,
-}
-
-#[derive(Debug)]
-pub enum DownloadStatus {
-    Pending,
-    Downloading,
-    Completed,
-    Error,
-}
 
 pub async fn init_yt_dlp() -> Result<Youtube, Box<dyn std::error::Error>> {
     let app_config = Config::from_env();
