@@ -7,6 +7,12 @@ extern crate sanitize_filename;
 use std::time::{Duration, Instant};
 use tracing::{error, info};
 
+/*
+ * Initializes the yt-dlp fetcher with custom download manager configuration.
+ * Sets up concurrency, segment size, retry attempts, and buffer sizes.
+ * Installs necessary external libraries (youtube-dl and ffmpeg) asynchronously.
+ * Returns a configured YouTube fetcher ready to download videos.
+ */
 pub fn init_yt_dlp() -> Result<Youtube, Box<dyn std::error::Error>> {
     let app_config = Config::from_env();
 
@@ -18,12 +24,13 @@ pub fn init_yt_dlp() -> Result<Youtube, Box<dyn std::error::Error>> {
         max_buffer_size: 1024 * 1024 * 20, // 20 MB maximum buffer
     };
 
-    let libraries_dir = PathBuf::from("libs");
-    let output_dir = PathBuf::from(&app_config.download_dir);
+    let libraries_dir = PathBuf::from("libs"); // Directory for external libs
+    let output_dir = PathBuf::from(&app_config.download_dir); // Directory for downloads
 
-    // Use blocking runtime for sync operations
+    // Create a Tokio runtime to run async installer calls in a blocking context
     let rt = tokio::runtime::Runtime::new()?;
 
+    // Install YouTube and FFMPEG binaries asynchronously
     let (youtube, ffmpeg) = rt.block_on(async {
         let installer = LibraryInstaller::new(libraries_dir.clone());
         let youtube = installer.install_youtube(None).await?;
@@ -37,6 +44,12 @@ pub fn init_yt_dlp() -> Result<Youtube, Box<dyn std::error::Error>> {
     Ok(fetcher)
 }
 
+/*
+ * Downloads a video from the given URL and associates it with a job ID.
+ * Measures download duration, logs progress and errors.
+ * Creates job-specific directory, sanitizes filenames, and uses quality and codec config.
+ * Returns the final path of the downloaded file and the duration taken.
+ */
 pub fn download_video(
     url: String,
     job_id: String,
@@ -46,6 +59,7 @@ pub fn download_video(
 
     info!(job_id = %job_id, url = %url, "Starting download job");
 
+    // Initialize yt-dlp fetcher
     let fetcher = match init_yt_dlp() {
         Ok(f) => f,
         Err(e) => {
@@ -54,7 +68,7 @@ pub fn download_video(
         }
     };
 
-    // Create runtime for async operations within sync context
+    // Create a runtime to run async video info fetching and downloading
     let rt = tokio::runtime::Runtime::new()?;
 
     let result = rt.block_on(async {
@@ -63,10 +77,12 @@ pub fn download_video(
 
         info!(job_id = %job_id, url = %url, video_title = %video.title, "Video info fetched");
 
+        // Prepare job directory for storing downloaded file
         let job_dir = PathBuf::from(&config.download_dir).join(&job_id);
         std::fs::create_dir_all(&job_dir)?;
         info!(job_id = %job_id, url = %url, path = %job_dir.display(), "Created job directory");
 
+        // Sanitize filename to avoid illegal characters
         let filename = format!("{}.mp4", video.title);
         let relative_path = format!("{}/{}", job_id, sanitize_filename::sanitize(&filename));
 
@@ -81,6 +97,7 @@ pub fn download_video(
             "Starting download with specified quality and codecs"
         );
 
+        // Start the download with desired quality and codecs
         let video_path = fetcher
             .download_video_with_quality(
                 url.clone(),
@@ -97,6 +114,7 @@ pub fn download_video(
 
     let duration = start.elapsed();
 
+    // Log and return results based on success or failure
     match result {
         Ok((_video, video_path)) => {
             info!(

@@ -1,8 +1,4 @@
-use axum::{
-    Router,
-    response::Html,
-    routing::{get, post},
-};
+use axum::{Router, routing::post};
 use tokio::net::TcpListener;
 
 mod config;
@@ -13,19 +9,23 @@ use routes::download::download_handler;
 
 mod handlers;
 
+/*
+ * Starts the Axum web server asynchronously.
+ * Sets up routes and listens on the configured address.
+ */
 pub async fn run_server() {
+    // Load configuration from environment variables
     let config = Config::from_env();
-    let app = Router::new()
-        .route("/", get(hello_world))
-        .route("/download", post(download_handler));
 
+    // Build the application router with routes
+    let app = Router::new().route("/download", post(download_handler)); // POST /download -> download_handler
+
+    // Bind TCP listener to the configured address
     let listener = TcpListener::bind(&config.address()).await.unwrap();
 
+    // Print server start info
     println!("Server is running on http://{}", config.address());
 
+    // Start serving requests
     axum::serve(listener, app).await.unwrap();
-}
-
-async fn hello_world() -> Html<&'static str> {
-    Html("Hello, world!")
 }

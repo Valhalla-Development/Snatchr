@@ -1,3 +1,17 @@
+/*
+ * HTTP handler for download requests using Axum framework.
+ *
+ * Expects a JSON payload with a 'url' field representing the video URL to download.
+ *
+ * Steps:
+ * 1. Generate a unique job ID for tracking the download.
+ * 2. Clone the URL from the request payload.
+ * 3. Offload the blocking download operation to a dedicated thread using `spawn_blocking`.
+ * 4. Handle any errors during task execution or download process.
+ * 5. Construct a public-facing file URL by stripping the download directory prefix.
+ * 6. Return a JSON response containing the relative URL to the downloaded file.
+ */
+
 use axum::{Json, response::Result};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -22,14 +36,16 @@ pub async fn download_handler(
     let job_id = Uuid::new_v4().to_string();
     let url = payload.url.clone();
 
+    // Run the download_video function on a blocking thread since it performs sync operations
     let (file_path, _duration) =
         tokio::task::spawn_blocking(move || download_video(url, job_id).map_err(|e| e.to_string()))
             .await
-            .map_err(|e| format!("Task join error: {}", e))?
-            .map_err(|e| format!("Download error: {}", e))?;
+            .map_err(|e| format!("Task join error: {}", e))? // Handle task join errors
+            .map_err(|e| format!("Download error: {}", e))?; // Handle download errors
 
     let config = Config::from_env();
 
+    // Create a relative file URL by stripping the base download directory from the absolute path
     let file_url = format!(
         "/{}",
         file_path

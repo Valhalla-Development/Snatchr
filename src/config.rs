@@ -1,9 +1,23 @@
+/*
+ * Configuration module for the Snatchr application.
+ *
+ * Parses environment variables (via dotenvy) to configure
+ * server settings, download paths, quality preferences, and performance options.
+ *
+ * Uses `strum` macros to derive enums that map environment strings
+ * to internal quality and codec preference enums used by yt-dlp.
+ */
+
 use dotenvy::dotenv;
 use std::env;
 use strum_macros::{EnumIter, EnumString};
 use yt_dlp::model::{AudioCodecPreference, AudioQuality, VideoCodecPreference, VideoQuality};
 
-// Environment-parseable enums (with FromStr via strum)
+/*
+ * Environment-parseable enums with FromStr implementations.
+ * These enums represent user-friendly strings in environment variables,
+ * which then get converted to yt_dlp enums.
+ */
 #[derive(Debug, EnumString, EnumIter)]
 #[strum(serialize_all = "PascalCase")]
 pub enum VideoQualityEnv {
@@ -42,7 +56,10 @@ pub enum AudioCodecPreferenceEnv {
     Any,
 }
 
-// Convert env enums to yt_dlp enums
+/*
+ * Implement conversion from environment enums to yt_dlp enums.
+ * This allows seamless mapping after parsing environment variables.
+ */
 impl From<VideoQualityEnv> for VideoQuality {
     fn from(env: VideoQualityEnv) -> Self {
         match env {
@@ -89,27 +106,35 @@ impl From<AudioCodecPreferenceEnv> for AudioCodecPreference {
     }
 }
 
+/*
+ * Main configuration struct holding all configurable parameters.
+ * This struct is used throughout the application to get settings.
+ */
 #[derive(Debug)]
 pub struct Config {
-    // Server
+    // Server binding info
     pub port: u16,
     pub host: String,
 
-    // Download paths & cleanup
+    // Download directory and cleanup timing (in minutes)
     pub download_dir: String,
     pub cleanup_after_minutes: u64,
 
-    // Quality settings
+    // Video and audio quality and codec preferences
     pub video_quality: VideoQuality,
     pub video_codec: VideoCodecPreference,
     pub audio_quality: AudioQuality,
     pub audio_codec: AudioCodecPreference,
 
-    // Performance
+    // Performance tuning parameters
     pub max_concurrent_downloads: usize,
     pub timeout_seconds: u64,
 }
 
+/*
+ * Default values for the configuration.
+ * These are used if no environment variable is set.
+ */
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -128,8 +153,12 @@ impl Default for Config {
 }
 
 impl Config {
+    /*
+     * Load configuration from environment variables.
+     * Falls back to default values when environment variables are missing or invalid.
+     */
     pub fn from_env() -> Self {
-        dotenv().ok();
+        dotenv().ok(); // Load .env file if present
         let default = Self::default();
 
         Self {
@@ -152,11 +181,19 @@ impl Config {
         }
     }
 
+    /*
+     * Helper method to get the full address string (host:port)
+     * for server binding or connection.
+     */
     pub fn address(&self) -> String {
         format!("{}:{}", self.host, self.port)
     }
 }
 
+/*
+ * Generic helper to parse an environment variable of type T.
+ * Returns default value if the variable is missing or parsing fails.
+ */
 fn parse_env<T>(key: &str, default: T) -> T
 where
     T: std::str::FromStr + Clone,
@@ -167,6 +204,10 @@ where
         .unwrap_or(default)
 }
 
+/*
+ * Helper to parse environment variables into enums (which implement FromStr).
+ * Returns default enum value if parsing fails.
+ */
 fn parse_env_enum<T>(key: &str, default: T) -> T
 where
     T: std::str::FromStr,
