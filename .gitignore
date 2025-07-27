@@ -16,6 +16,8 @@
 !/downloads/.gitkeep
 # yt-dlp binaries
 /libs/*
+# Environment variables
+.env
 
 # ========================
 # IDEs and editors
