@@ -42,6 +42,27 @@ pub async fn init_yt_dlp() -> Result<Youtube, Box<dyn std::error::Error>> {
     Ok(fetcher)
 }
 
+pub async fn download_video(url: String, job_id: String) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let config = Config::new();
+
+    let fetcher = init_yt_dlp().await?;
+
+    let video = fetcher.fetch_video_infos(url.clone()).await?;
+
+    let video_path = fetcher.download_video_with_quality(
+        url.clone(),
+        format!("{}.mp4", job_id),
+        config.video_quality,
+        config.video_codec,
+        config.audio_quality,
+        config.audio_codec
+    ).await?;
+
+    println!("Final download status: {:?}", video_path);
+
+    Ok(video_path)
+}
+
 pub async fn start_background_download(url: String, job_id: String) {
     // TODO
 }
