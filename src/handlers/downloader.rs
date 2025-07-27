@@ -57,8 +57,7 @@ pub async fn download_video(
 
     let fetcher = init_yt_dlp().await?;
 
-    let video = fetcher.fetch_video_infos(url.clone()).await?;
-    println!("Video info fetched successfully");
+    println!("Downloading video...");
 
     let video_path = fetcher
         .download_video_with_quality(
