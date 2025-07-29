@@ -59,9 +59,33 @@ pub fn download_video(
 
     info!(job_id = %job_id, url = %url, "Starting download job");
 
-    // Initialize yt-dlp fetcher
+    // Initialize yt-dlp fetcher with corruption handling
     let fetcher = match init_yt_dlp() {
         Ok(f) => f,
+        Err(e)
+            if e.to_string().contains("invalid Zip archive")
+                || e.to_string().contains("Could not find EOCD") =>
+        {
+            error!(job_id = %job_id, url = %url, error = %e, "Detected corrupted yt-dlp libraries, cleaning up...");
+
+            // Remove corrupted libs directory
+            let libs_dir = PathBuf::from("libs");
+            if libs_dir.exists() {
+                std::fs::remove_dir_all(&libs_dir).unwrap_or_else(|e| {
+                    error!("Failed to remove corrupted libs directory: {}", e);
+                });
+                info!("Removed corrupted libs directory, retrying initialization...");
+            }
+
+            // Retry initialization
+            match init_yt_dlp() {
+                Ok(f) => f,
+                Err(retry_error) => {
+                    error!(job_id = %job_id, url = %url, error = %retry_error, "Failed to initialize yt-dlp after cleanup");
+                    return Err(retry_error);
+                }
+            }
+        }
         Err(e) => {
             error!(job_id = %job_id, url = %url, error = %e, "Failed to initialize yt-dlp");
             return Err(e);
