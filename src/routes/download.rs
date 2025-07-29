@@ -16,6 +16,7 @@ use axum::Json;
 use serde::{Deserialize, Serialize};
 use tokio::time::{Duration, timeout};
 use tracing::error;
+use urlencoding::encode;
 use uuid::Uuid;
 
 use crate::config::Config;
@@ -81,13 +82,21 @@ pub async fn download_handler(Json(payload): Json<DownloadRequest>) -> Json<Down
         }
     };
 
-    // Create a relative file URL by stripping the base download directory from the absolute path
+    // Create a full file URL pointing to our file serving endpoint
+    let relative_path = file_path
+        .strip_prefix(&config.download_dir)
+        .unwrap_or(&file_path);
+
+    // Extract job_id and filename from the relative path
+    let mut path_parts = relative_path.iter();
+    let job_id = path_parts.next().unwrap().to_string_lossy();
+    let filename = path_parts.next().unwrap().to_string_lossy();
+
     let file_url = format!(
-        "/{}",
-        file_path
-            .strip_prefix(&config.download_dir)
-            .unwrap_or(&file_path)
-            .to_string_lossy()
+        "http://{}/files/{}/{}",
+        config.address(),
+        job_id,
+        encode(&filename)
     );
 
     Json(DownloadResponse {
