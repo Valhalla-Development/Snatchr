@@ -212,6 +212,9 @@ pub async fn start_cleanup_scheduler() {
         error!("Initial cleanup failed: {}", e);
     }
 
+    // Wait for first interval, then start the loop
+    interval_timer.tick().await;
+
     // Main cleanup loop
     loop {
         interval_timer.tick().await;
