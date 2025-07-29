@@ -8,10 +8,10 @@ services:
       - CLEANUP_AFTER_MINUTES=120
       - MAX_CONCURRENT_DOWNLOADS=5
       - TIMEOUT_SECONDS=600
-      - VIDEO_QUALITY=Worst
-      - VIDEO_CODEC=Any
-      - AUDIO_QUALITY=Worst
-      - AUDIO_CODEC=Any
+      - VIDEO_QUALITY=Best
+      - VIDEO_CODEC=VP9
+      - AUDIO_QUALITY=Best
+      - AUDIO_CODEC=Opus
     image: ghcr.io/Valhalla-Development/snatchr:latest
     ports:
       - "3000:3000"
