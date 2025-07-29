@@ -26,7 +26,9 @@ impl std::fmt::Display for CleanupError {
         match self {
             CleanupError::IoError(e) => write!(f, "IO error: {}", e),
             CleanupError::TimeError(e) => write!(f, "Time error: {}", e),
-            CleanupError::DirectoryNotFound => write!(f, "Download directory not found"),
+            CleanupError::DirectoryNotFound => {
+                write!(f, "Download directory not found or could not be created")
+            }
             CleanupError::InvalidConfiguration => write!(f, "Invalid cleanup configuration"),
         }
     }
@@ -58,7 +60,8 @@ pub fn cleanup_old_files() -> Result<usize, CleanupError> {
     let download_dir = PathBuf::from(&config.download_dir);
 
     if !download_dir.exists() {
-        return Err(CleanupError::DirectoryNotFound);
+        // Try to create the directory if it doesn't exist
+        std::fs::create_dir_all(&download_dir).map_err(|_| CleanupError::DirectoryNotFound)?;
     }
 
     // Calculate cutoff time (files older than this will be removed)
