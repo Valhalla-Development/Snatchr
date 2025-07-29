@@ -1,6 +1,8 @@
 <div align="center">
   <img id="top" src="https://share.valhalladev.org/u/Snatchr.png" width="100%" alt="Snatchr Banner">
 
+# [WIP] ⚠️ This project has not released yet and therefore NOT fit for use.
+
 # 🎬 Snatchr: Lightning-Fast Video Downloader! ⚡
 
   <p>
@@ -15,13 +17,13 @@
     <a href="#"><img src="https://img.shields.io/badge/Made%20with-TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="Made with TypeScript"></a>
   </p>
 
-  <p><em>A blazing-fast HTTP API for downloading videos from any platform with automatic cleanup and file serving!</em></p>
+  <p><em>A blazing-fast HTTP API for downloading videos from YouTube with automatic cleanup and file serving!</em></p>
 </div>
 
 ---
 ## 🌟 Welcome to Snatchr, the Ultimate Video Download API!
 
-This project provides a robust HTTP API for downloading videos using [yt-dlp](https://github.com/yt-dlp/yt-dlp), built with [Rust](https://www.rust-lang.org/) and [Axum](https://github.com/tokio-rs/axum) for maximum performance and reliability.
+This project provides a robust HTTP API for downloading videos from YouTube using [yt-dlp](https://github.com/yt-dlp/yt-dlp), built with [Rust](https://www.rust-lang.org/) and [Axum](https://github.com/tokio-rs/axum) for maximum performance and reliability.
 
 ## 🎮 Features That Power Your Downloads
 
