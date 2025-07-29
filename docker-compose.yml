@@ -4,6 +4,7 @@ services:
     environment:
       - PORT=3000
       - HOST=0.0.0.0
+      - EXTERNAL_URL=
       - DOWNLOAD_DIR=./downloads
       - CLEANUP_AFTER_MINUTES=120
       - MAX_CONCURRENT_DOWNLOADS=5
