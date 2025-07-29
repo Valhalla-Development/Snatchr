@@ -66,6 +66,7 @@ This project provides a robust HTTP API for downloading videos from YouTube usin
 
 <details>
 <summary>🐳 Deploy with Docker</summary>
+<br>
 1. Download the <a href="https://github.com/Valhalla-Development/Snatchr/blob/main/docker-compose.yml">docker-compose.yml</a> file or clone the repository:
 
    ```bash
@@ -85,7 +86,9 @@ This project provides a robust HTTP API for downloading videos from YouTube usin
 
 <details>
 <summary>🚀 Build Locally (Rust)</summary>
+<br>
 1. <a href="https://github.com/Valhalla-Development/Snatchr/releases">Download</a> the latest release or clone the repository:
+
    ```bash
    git clone https://github.com/Valhalla-Development/Snatchr.git
    ```
