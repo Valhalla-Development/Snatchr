@@ -12,9 +12,10 @@
  * 6. Return a JSON response containing the relative URL to the downloaded file.
  */
 
-use axum::{Json, response::Result};
+use axum::Json;
 use serde::{Deserialize, Serialize};
 use tokio::time::{Duration, timeout};
+use tracing::error;
 use uuid::Uuid;
 
 use crate::config::Config;
@@ -28,26 +29,55 @@ pub struct DownloadRequest {
 #[derive(Serialize)]
 pub struct DownloadResponse {
     success: bool,
-    file_url: String,
+    file_url: Option<String>,
+    error: Option<String>,
 }
 
 #[axum::debug_handler]
-pub async fn download_handler(
-    Json(payload): Json<DownloadRequest>,
-) -> Result<Json<DownloadResponse>> {
+pub async fn download_handler(Json(payload): Json<DownloadRequest>) -> Json<DownloadResponse> {
     let job_id = Uuid::new_v4().to_string();
     let url = payload.url.clone();
     let config = Config::from_env();
 
     // Run the download_video function on a blocking thread since it performs sync operations
-    let (file_path, _duration) = timeout(
+    let job_id_clone = job_id.clone();
+    let result = timeout(
         Duration::from_secs(config.timeout_seconds as u64),
         tokio::task::spawn_blocking(move || download_video(url, job_id).map_err(|e| e.to_string())),
     )
-    .await
-    .map_err(|_| "Download timeout".to_string())? // Handle timeout errors
-    .map_err(|e| format!("Task join error: {}", e))? // Handle task join errors
-    .map_err(|e| format!("Download error: {}", e))?; // Handle download errors
+    .await;
+
+    let (file_path, _duration) = match result {
+        Ok(task_result) => match task_result {
+            Ok(download_result) => match download_result {
+                Ok(result) => result,
+                Err(e) => {
+                    error!(job_id = %job_id_clone, error = %e, "Download error occurred");
+                    return Json(DownloadResponse {
+                        success: false,
+                        file_url: None,
+                        error: Some(format!("Download error: {}", e)),
+                    });
+                }
+            },
+            Err(e) => {
+                error!(job_id = %job_id_clone, error = %e, "Task join error occurred");
+                return Json(DownloadResponse {
+                    success: false,
+                    file_url: None,
+                    error: Some(format!("Task join error: {}", e)),
+                });
+            }
+        },
+        Err(_) => {
+            error!(job_id = %job_id_clone, "Download timeout occurred");
+            return Json(DownloadResponse {
+                success: false,
+                file_url: None,
+                error: Some("Download timeout".to_string()),
+            });
+        }
+    };
 
     // Create a relative file URL by stripping the base download directory from the absolute path
     let file_url = format!(
@@ -58,8 +88,9 @@ pub async fn download_handler(
             .to_string_lossy()
     );
 
-    Ok(Json(DownloadResponse {
+    Json(DownloadResponse {
         success: true,
-        file_url,
-    }))
+        file_url: Some(file_url),
+        error: None,
+    })
 }
