@@ -36,5 +36,9 @@ jobs:
           tags: |
             ghcr.io/valhalla-development/snatchr:${{ github.event.release.tag_name }}
             ghcr.io/valhalla-development/snatchr:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max 
+          cache-from: |
+            type=gha,scope=snatchr
+            type=registry,ref=ghcr.io/valhalla-development/snatchr:cache
+          cache-to: |
+            type=gha,mode=max,scope=snatchr
+            type=registry,ref=ghcr.io/valhalla-development/snatchr:cache,mode=max 
