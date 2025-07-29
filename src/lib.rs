@@ -8,6 +8,8 @@ mod routes;
 use routes::download::download_handler;
 
 mod handlers;
+mod utils;
+use utils::cleanup::start_cleanup_scheduler;
 
 /*
  * Starts the Axum web server asynchronously.
@@ -25,6 +27,9 @@ pub async fn run_server() {
 
     // Print server start info
     println!("Server is running on http://{}", config.address());
+
+    // Start cleanup scheduler in background
+    tokio::spawn(start_cleanup_scheduler());
 
     // Start serving requests
     axum::serve(listener, app).await.unwrap();
