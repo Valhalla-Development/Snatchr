@@ -14,6 +14,7 @@
 
 use axum::Json;
 use serde::{Deserialize, Serialize};
+use std::env;
 use tokio::time::{Duration, timeout};
 use tracing::error;
 use urlencoding::encode;
@@ -92,12 +93,14 @@ pub async fn download_handler(Json(payload): Json<DownloadRequest>) -> Json<Down
     let job_id = path_parts.next().unwrap().to_string_lossy();
     let filename = path_parts.next().unwrap().to_string_lossy();
 
-    let file_url = format!(
-        "http://{}/files/{}/{}",
-        config.address(),
-        job_id,
-        encode(&filename)
-    );
+    let base_url = if config.external_url.is_empty() {
+        let protocol = env::var("USE_HTTPS").unwrap_or_else(|_| "http".to_string());
+        format!("{}://{}", protocol, config.address())
+    } else {
+        config.external_url
+    };
+
+    let file_url = format!("{}/files/{}/{}", base_url, job_id, encode(&filename));
 
     Json(DownloadResponse {
         success: true,
