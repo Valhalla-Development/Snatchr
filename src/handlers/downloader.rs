@@ -59,6 +59,17 @@ pub fn download_video(
 
     info!(job_id = %job_id, url = %url, "Starting download job");
 
+    // Check if download directory exists
+    let download_dir = PathBuf::from(&config.download_dir);
+    if !download_dir.exists() {
+        error!(job_id = %job_id, url = %url, download_dir = %download_dir.display(), "Download directory does not exist");
+        return Err(format!(
+            "Download directory does not exist: {}. Please create the directory or configure the DOWNLOAD_DIR environment variable.",
+            download_dir.display()
+        )
+        .into());
+    }
+
     // Initialize yt-dlp fetcher with corruption handling
     let fetcher = match init_yt_dlp() {
         Ok(f) => f,
