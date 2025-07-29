@@ -1,8 +1,6 @@
 <div align="center">
   <img id="top" src="https://share.valhalladev.org/u/Snatchr.png" width="100%" alt="Snatchr Banner">
 
-# [WIP] ⚠️ This project has not released yet and therefore NOT fit for use.
-
 # 🎬 Snatchr: Lightning-Fast Video Downloader! ⚡
 
   <p>
