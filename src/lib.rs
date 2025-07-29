@@ -1,4 +1,7 @@
-use axum::{Router, routing::post};
+use axum::{
+    Router,
+    routing::{get, post},
+};
 use tokio::net::TcpListener;
 
 mod config;
@@ -6,6 +9,7 @@ use config::Config;
 
 mod routes;
 use routes::download::download_handler;
+use routes::files::serve_file;
 
 mod handlers;
 mod utils;
@@ -20,7 +24,9 @@ pub async fn run_server() {
     let config = Config::from_env();
 
     // Build the application router with routes
-    let app = Router::new().route("/download", post(download_handler)); // POST /download -> download_handler
+    let app = Router::new()
+        .route("/download", post(download_handler)) // POST /download -> download_handler
+        .route("/files/{job_id}/{filename}", get(serve_file)); // GET /files/:job_id/:filename -> serve_file
 
     // Bind TCP listener to the configured address
     let listener = TcpListener::bind(&config.address()).await.unwrap();
