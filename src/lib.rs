@@ -35,6 +35,9 @@ pub async fn run_server() {
 
     // Print server start info
     println!("Server is running on http://{}", config.address());
+    if !config.external_url.is_empty() {
+        println!("External URL: {}", config.external_url);
+    }
 
     // Start cleanup scheduler in background
     tokio::spawn(start_cleanup_scheduler());
