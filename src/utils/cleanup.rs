@@ -2,6 +2,7 @@ use crate::config::Config;
 use std::fs;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
+use tokio::time::interval;
 use tracing::{error, info, warn};
 
 /*
@@ -183,5 +184,41 @@ fn log_cleanup_result(removed_count: usize) {
         );
     } else {
         info!("Cleanup completed: no old files found");
+    }
+}
+
+// Runs cleanup in a background task with periodic execution
+pub async fn start_cleanup_scheduler() {
+    let config = Config::from_env();
+
+    // Validate configuration
+    if config.cleanup_after_minutes == 0 {
+        error!("Invalid cleanup configuration: cleanup_after_minutes cannot be 0");
+        return;
+    }
+
+    // Run cleanup every quarter of the expiry time (more frequent checks)
+    let cleanup_interval = Duration::from_secs(config.cleanup_after_minutes as u64 * 60);
+    let mut interval_timer = interval(cleanup_interval);
+
+    info!(
+        "Starting cleanup scheduler with interval: {:?}",
+        cleanup_interval
+    );
+
+    // Run initial cleanup
+    info!("Running initial cleanup check...");
+    if let Err(e) = cleanup_old_files() {
+        error!("Initial cleanup failed: {}", e);
+    }
+
+    // Main cleanup loop
+    loop {
+        interval_timer.tick().await;
+        info!("Running scheduled cleanup...");
+
+        if let Err(e) = cleanup_old_files() {
+            error!("Cleanup task failed: {}", e);
+        }
     }
 }
