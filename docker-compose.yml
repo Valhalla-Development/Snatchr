@@ -1,0 +1,25 @@
+services:
+  snatchr:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - HOST=0.0.0.0
+      - DOWNLOAD_DIR=./downloads
+      - CLEANUP_AFTER_MINUTES=120
+      - MAX_CONCURRENT_DOWNLOADS=5
+      - TIMEOUT_SECONDS=600
+      - VIDEO_QUALITY=Worst
+      - VIDEO_CODEC=Any
+      - AUDIO_QUALITY=Worst
+      - AUDIO_CODEC=Any
+    volumes:
+      - ./downloads:/app/downloads
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
