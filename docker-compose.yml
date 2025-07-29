@@ -12,7 +12,7 @@ services:
       - VIDEO_CODEC=VP9
       - AUDIO_QUALITY=Best
       - AUDIO_CODEC=Opus
-    image: ghcr.io/Valhalla-Development/snatchr:latest
+    image: ghcr.io/valhalla-development/snatchr:latest
     ports:
       - "3000:3000"
     restart: unless-stopped
