@@ -27,6 +27,7 @@ pub struct DownloadRequest {
 
 #[derive(Serialize)]
 pub struct DownloadResponse {
+    success: bool,
     file_url: String,
 }
 
@@ -57,5 +58,8 @@ pub async fn download_handler(
             .to_string_lossy()
     );
 
-    Ok(Json(DownloadResponse { file_url }))
+    Ok(Json(DownloadResponse {
+        success: true,
+        file_url,
+    }))
 }
