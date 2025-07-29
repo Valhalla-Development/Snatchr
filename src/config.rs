@@ -115,6 +115,7 @@ pub struct Config {
     // Server binding info
     pub port: u16,
     pub host: String,
+    pub external_url: String,
 
     // Download directory and cleanup timing (in minutes)
     pub download_dir: String,
@@ -139,7 +140,8 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             port: 3000,
-            host: "127.0.0.1".to_string(),
+            host: "0.0.0.0".to_string(),
+            external_url: String::new(),
             download_dir: "./downloads".to_string(),
             cleanup_after_minutes: 10,
             video_quality: VideoQuality::Best,
@@ -164,6 +166,7 @@ impl Config {
         Self {
             port: parse_env("PORT", default.port),
             host: parse_env("HOST", default.host),
+            external_url: parse_env("EXTERNAL_URL", default.external_url),
             download_dir: parse_env("DOWNLOAD_DIR", default.download_dir),
             cleanup_after_minutes: parse_env(
                 "CLEANUP_AFTER_MINUTES",
