@@ -1698,6 +1698,7 @@ dependencies = [
  "dotenvy",
  "sanitize-filename",
  "serde",
+ "serde_json",
  "strum",
  "strum_macros",
  "tokio",
