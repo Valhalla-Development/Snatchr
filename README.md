@@ -1,8 +1,6 @@
 <div align="center">
   <img id="top" src="https://share.valhalladev.org/u/Snatchr.png" width="100%" alt="Snatchr Banner">
 
-# [WIP] ⚠️ This project has not released yet and therefore NOT fit for use.
-
 # 🎬 Snatchr: Lightning-Fast Video Downloader! ⚡
 
   <p>
@@ -65,6 +63,26 @@ This project provides a robust HTTP API for downloading videos from YouTube usin
 - [Rust](https://rustup.rs/) (1.70 or later)
 
 ## 🛠️ Setup Guide
+
+## 📱 iOS Shortcut (Beta)
+
+Download videos directly from your Apple device with our iOS Shortcut integration!
+
+**🔗 Download:** [Snatchr iOS Shortcut](https://www.icloud.com/shortcuts/dab6b7bfb7054129aee24a4deef3c517)
+
+### ⚙️ Setup Instructions
+
+1. **Configure Server URL:** After downloading, open the shortcut and update the `EXTERNAL_URL` in the dictionary at the top
+   - Include the `/download` endpoint (e.g., `https://your-server.com/download`)
+
+2. **Codec Compatibility:** For automatic saving to your photo gallery, ensure your Snatchr instance uses compatible codecs:
+   - **Video:** `AVC1` (recommended)
+   - **Audio:** `AAC` (recommended)
+
+3. **Alternative Save Method:** If you experience issues with gallery saving, edit the shortcut and change `Save URL to Recents` to `Save File` instead
+
+> **Note:** This shortcut is currently in beta. Please report any issues on our [GitHub Issues](https://github.com/Valhalla-Development/Snatchr/issues) page. 
+
 
 <details>
 <summary>🐳 Deploy with Docker</summary>
