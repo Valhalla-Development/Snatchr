@@ -29,7 +29,7 @@ pub enum VideoQualityEnv {
 }
 
 #[derive(Debug, EnumString, EnumIter)]
-#[strum(serialize_all = "PascalCase")]
+#[strum(serialize_all = "lowercase")]
 pub enum VideoCodecPreferenceEnv {
     VP9,
     AVC1,
@@ -48,7 +48,7 @@ pub enum AudioQualityEnv {
 }
 
 #[derive(Debug, EnumString, EnumIter)]
-#[strum(serialize_all = "PascalCase")]
+#[strum(serialize_all = "lowercase")]
 pub enum AudioCodecPreferenceEnv {
     Opus,
     AAC,
@@ -176,9 +176,9 @@ impl Config {
                 default.cleanup_after_minutes,
             ),
             video_quality: parse_env_enum("VIDEO_QUALITY", VideoQualityEnv::Best).into(),
-            video_codec: parse_env_enum("VIDEO_CODEC", VideoCodecPreferenceEnv::VP9).into(),
+            video_codec: video_codec.into(),
             audio_quality: parse_env_enum("AUDIO_QUALITY", AudioQualityEnv::Best).into(),
-            audio_codec: parse_env_enum("AUDIO_CODEC", AudioCodecPreferenceEnv::Opus).into(),
+            audio_codec: audio_codec.into(),
             max_concurrent_downloads: parse_env(
                 "MAX_CONCURRENT_DOWNLOADS",
                 default.max_concurrent_downloads,
@@ -220,6 +220,6 @@ where
 {
     env::var(key)
         .ok()
-        .and_then(|v| v.parse().ok())
+        .and_then(|v| v.to_lowercase().parse().ok())
         .unwrap_or(default)
 }
