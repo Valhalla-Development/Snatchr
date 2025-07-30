@@ -117,9 +117,37 @@ pub fn download_video(
         std::fs::create_dir_all(&job_dir)?;
         info!(job_id = %job_id, url = %url, path = %job_dir.display(), "Created job directory");
 
+        // Helper function to clean the filename
+        fn clean(filename: &str) -> String {
+            filename
+                .trim()
+                .chars()
+                .filter_map(|c| match c {
+                    c if c.is_alphanumeric() => Some(c),
+                    ' ' | '-' | '_' => Some('_'), // Normalize separators to underscores
+                    _ => None,                    // Remove invalid characters
+                })
+                .collect::<String>()
+                .chars()
+                .fold(String::new(), |mut acc, c| {
+                    // Prevent consecutive underscores
+                    if c == '_' && acc.ends_with('_') {
+                        acc
+                    } else {
+                        acc.push(c);
+                        acc
+                    }
+                })
+                .trim_matches('_') // Remove leading/trailing underscores
+                .to_string()
+        }
+
         // Sanitize filename to avoid illegal characters
-        let filename = format!("{}.mp4", video.title);
-        let relative_path = format!("{}/{}", job_id, sanitize_filename::sanitize(&filename));
+        let relative_path = format!(
+            "{}/{}.mp4",
+            job_id,
+            clean(&sanitize_filename::sanitize(&video.title))
+        );
 
         info!(
             job_id = %job_id,
