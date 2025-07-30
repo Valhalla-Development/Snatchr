@@ -116,6 +116,7 @@ pub struct Config {
     pub port: u16,
     pub host: String,
     pub external_url: String,
+    pub use_https: bool,
 
     // Download directory and cleanup timing (in minutes)
     pub download_dir: String,
@@ -142,6 +143,7 @@ impl Default for Config {
             port: 3000,
             host: "0.0.0.0".to_string(),
             external_url: String::new(),
+            use_https: false,
             download_dir: "./downloads".to_string(),
             cleanup_after_minutes: 10,
             video_quality: VideoQuality::Best,
@@ -167,6 +169,7 @@ impl Config {
             port: parse_env("PORT", default.port),
             host: parse_env("HOST", default.host),
             external_url: parse_env("EXTERNAL_URL", default.external_url),
+            use_https: parse_env("USE_HTTPS", default.use_https),
             download_dir: parse_env("DOWNLOAD_DIR", default.download_dir),
             cleanup_after_minutes: parse_env(
                 "CLEANUP_AFTER_MINUTES",
