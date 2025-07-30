@@ -2,16 +2,29 @@ services:
   snatchr:
     container_name: snatchr
     environment:
+      # Port for the application server
       - PORT=3000
+      # Host address for the server (e.g., 127.0.0.1 for localhost)
       - HOST=0.0.0.0
+      # Optional external URL to use
       - EXTERNAL_URL=
+      # Only used if EXTERNAL_URL is blank
+      - USE_HTTPS=
+      # Directory where downloaded files will be saved
       - DOWNLOAD_DIR=./downloads
+      # Automatically delete downloads after this many minutes (set to 0 to disable)
       - CLEANUP_AFTER_MINUTES=120
+      # Maximum number of downloads allowed at the same time
       - MAX_CONCURRENT_DOWNLOADS=5
+      # Timeout for a single download (in seconds)
       - TIMEOUT_SECONDS=600
+      # Video quality preference https://docs.rs/yt-dlp/latest/yt_dlp/index.html#-video-quality-options
       - VIDEO_QUALITY=Best
+      # Video codec preference https://docs.rs/yt-dlp/latest/yt_dlp/index.html#-video-codecs
       - VIDEO_CODEC=VP9
+      # Audio quality preference https://docs.rs/yt-dlp/latest/yt_dlp/index.html#-audio-quality-options
       - AUDIO_QUALITY=Best
+      # Audio codec preference https://docs.rs/yt-dlp/latest/yt_dlp/index.html#-audio-codecs
       - AUDIO_CODEC=Opus
     image: ghcr.io/valhalla-development/snatchr:latest
     ports:
