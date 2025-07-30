@@ -176,9 +176,9 @@ impl Config {
                 default.cleanup_after_minutes,
             ),
             video_quality: parse_env_enum("VIDEO_QUALITY", VideoQualityEnv::Best).into(),
-            video_codec: video_codec.into(),
+            video_codec: parse_env_enum("VIDEO_CODEC", VideoCodecPreferenceEnv::VP9).into(),
             audio_quality: parse_env_enum("AUDIO_QUALITY", AudioQualityEnv::Best).into(),
-            audio_codec: audio_codec.into(),
+            audio_codec: parse_env_enum("AUDIO_CODEC", AudioCodecPreferenceEnv::Opus).into(),
             max_concurrent_downloads: parse_env(
                 "MAX_CONCURRENT_DOWNLOADS",
                 default.max_concurrent_downloads,
