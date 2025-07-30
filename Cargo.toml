@@ -1,6 +1,6 @@
 [package]
 name = "snatchr"
-version = "0.1.68"
+version = "0.1.73"
 edition = "2024"
 
 [dependencies]
