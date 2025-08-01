@@ -11,6 +11,7 @@ mod routes;
 use routes::download::download_handler;
 use routes::files::serve_file;
 use routes::health::health_check;
+use routes::page::download_page;
 
 mod handlers;
 mod utils;
@@ -26,6 +27,7 @@ pub async fn run_server() {
 
     // Build the application router with routes
     let app = Router::new()
+        .route("/", get(download_page)) // GET / -> download_page (HTML interface)
         .route("/health", get(health_check)) // GET /health -> health_check
         .route("/download", post(download_handler)) // POST /download -> download_handler
         .route("/files/{job_id}/{filename}", get(serve_file)); // GET /files/:job_id/:filename -> serve_file
