@@ -32,24 +32,47 @@ pub async fn run_server() {
         .route("/download", post(download_handler)) // POST /download -> download_handler
         .route("/files/{job_id}/{filename}", get(serve_file)); // GET /files/:job_id/:filename -> serve_file
 
-    // Print web UI status
-    if config.enable_web_ui {
-        println!("Web UI enabled at http://{}", config.address());
-    } else {
-        println!(
-            "Web UI disabled - API only mode at http://{}",
-            config.address()
-        );
-    }
-
     // Bind TCP listener to the configured address
     let listener = TcpListener::bind(&config.address()).await.unwrap();
 
-    // Print server start info
-    println!("Server is running on http://{}", config.address());
-    if !config.external_url.is_empty() {
-        println!("External URL: {}", config.external_url);
+    // Print tree-style startup banner
+    println!();
+    println!("🚀 SNATCHR v{}", env!("CARGO_PKG_VERSION"));
+    println!("├── 📍 Server: http://{}", config.address());
+    println!("├── ⚙️  Configuration:");
+
+    // Log configuration values from the loaded config
+    println!("│   ├── PORT = {}", config.port);
+    println!("│   ├── HOST = {}", config.host);
+    println!("│   ├── EXTERNAL_URL = {}", config.external_url);
+    println!("│   ├── USE_HTTPS = {}", config.use_https);
+    println!("│   ├── ENABLE_WEB_UI = {}", config.enable_web_ui);
+    println!("│   ├── DOWNLOAD_DIR = {}", config.download_dir);
+    println!(
+        "│   ├── CLEANUP_AFTER_MINUTES = {}",
+        config.cleanup_after_minutes
+    );
+    println!(
+        "│   ├── MAX_CONCURRENT_DOWNLOADS = {}",
+        config.max_concurrent_downloads
+    );
+    println!("│   ├── TIMEOUT_SECONDS = {}", config.timeout_seconds);
+    println!("│   ├── VIDEO_QUALITY = {:?}", config.video_quality);
+    println!("│   ├── VIDEO_CODEC = {:?}", config.video_codec);
+    println!("│   ├── AUDIO_QUALITY = {:?}", config.audio_quality);
+    println!("│   └── AUDIO_CODEC = {:?}", config.audio_codec);
+
+    println!("├── 📋 Status:");
+    if std::fs::read_to_string(".env").is_err() {
+        println!(
+            "│   └── ⚠️  No .env file found, using defaults - create one or copy .env.example"
+        );
+    } else {
+        println!("│   └── ✅ Configuration loaded from .env");
     }
+    println!("└── 🚀 Ready!");
+
+    println!();
 
     // Start cleanup scheduler in background
     tokio::spawn(start_cleanup_scheduler());
