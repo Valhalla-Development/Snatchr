@@ -15,7 +15,7 @@
     <a href="#"><img src="https://img.shields.io/badge/Made%20with-TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="Made with TypeScript"></a>
   </p>
 
-  <p><em>A blazing-fast HTTP API for downloading videos from YouTube with automatic cleanup and file serving!</em></p>
+  <p><em>A blazing-fast HTTP API for downloading videos from YouTube with automatic cleanup, file serving, and a modern web interface!</em></p>
 </div>
 
 ---
@@ -38,8 +38,8 @@ This project provides a robust HTTP API for downloading videos from YouTube usin
   </tr>
   <tr>
     <td width="50%">
-      <h3>🧹 Smart Cleanup System</h3>
-      <p>Automated cleanup of old downloads with configurable retention periods and scheduling.</p>
+      <h3>🌐 Modern Web Interface</h3>
+      <p>Beautiful, responsive web UI with video preview, download history, and drag-and-drop support.</p>
     </td>
     <td width="50%">
       <h3>🔧 Configurable Quality</h3>
@@ -48,8 +48,8 @@ This project provides a robust HTTP API for downloading videos from YouTube usin
   </tr>
   <tr>
     <td width="50%">
-      <h3>⚡ Async & Concurrent</h3>
-      <p>Built on Tokio runtime with concurrent downloads and non-blocking file operations.</p>
+      <h3>🧹 Smart Cleanup System</h3>
+      <p>Automated cleanup of old downloads with configurable retention periods and scheduling.</p>
     </td>
     <td width="50%">
       <h3>📊 Comprehensive Logging</h3>
@@ -63,6 +63,38 @@ This project provides a robust HTTP API for downloading videos from YouTube usin
 - [Rust](https://rustup.rs/) (1.70 or later)
 
 ## 🛠️ Setup Guide
+
+## 🌐 Web Interface
+
+Snatchr includes a beautiful, modern web interface for easy video downloading!
+
+### ✨ Features
+- **🎬 Video Preview** - Watch downloaded videos directly in the browser
+- **📋 Download History** - Keep track of your previous downloads
+- **🎨 Modern UI** - Clean, responsive design with Tailwind CSS
+- **⚡ Fast & Simple** - Just paste a YouTube URL and click download
+
+### 🚀 How to Use
+1. Start your Snatchr server
+2. Open your browser and go to `http://localhost:3000`
+3. Paste a YouTube URL in the input field
+4. Click "Download Video" and watch the magic happen!
+
+### 🎯 Tips
+- Use the "Paste" button to quickly paste URLs from your clipboard
+- Downloaded videos appear in the video player for instant preview
+- Previous downloads are saved in the history section
+- The interface works great on mobile devices too!
+
+### ⚠️ Important Note
+If you're running locally and your server is bound to `0.0.0.0`, some browsers and extensions may block video playback. Use `localhost` in your browser URL instead of `0.0.0.0` for the best experience.
+
+### 🔧 Configuration
+You can disable the web interface by setting the environment variable:
+```bash
+ENABLE_WEB_UI=false
+```
+When disabled, only the API endpoints will be available.
 
 ## 📱 iOS Shortcut (Beta)
 
