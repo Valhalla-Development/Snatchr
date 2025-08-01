@@ -426,7 +426,8 @@ pub async fn download_page() -> Html<&'static str> {
             return youtubePatterns.some(pattern => pattern.test(url));
         }
 
-        // Track last downloaded URL
+        // Track download history
+        let downloadHistory = [];
         let lastDownloadedUrl = '';
 
         // Paste button functionality
@@ -527,6 +528,40 @@ pub async fn download_page() -> Html<&'static str> {
                     // Extract filename from the URL
                     const fileName = data.file_url.split('/').pop().replaceAll('_', ' ');
                     
+                    // Add to download history
+                    downloadHistory.unshift({
+                        fileName: fileName,
+                        fileUrl: data.file_url,
+                        timestamp: new Date().toLocaleTimeString()
+                    });
+                    
+                    // Keep only last 5 downloads
+                    if (downloadHistory.length > 5) {
+                        downloadHistory.pop();
+                    }
+                    
+                    // Generate history HTML
+                    const historyHTML = downloadHistory.length > 1 ? `
+                        <div class="mt-6 pt-6 border-t border-white/20">
+                            <h4 class="text-sm font-semibold text-white/80 mb-3">Previous Downloads</h4>
+                            <div class="space-y-2">
+                                ${downloadHistory.slice(1).map(item => `
+                                    <div class="flex items-center justify-between p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                                        <div class="flex-1 min-w-0">
+                                            <div class="text-sm font-medium text-white truncate">${item.fileName}</div>
+                                            <div class="text-xs text-white/60">Generated at ${item.timestamp}</div>
+                                        </div>
+                                        <a href="${item.fileUrl}" target="_blank" class="ml-3 p-2 text-white/70 hover:text-white transition-colors">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                            </svg>
+                                        </a>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : '';
+                    
                     result.innerHTML = `
                         <div class="bg-green-500/20 border border-green-500/30 rounded-2xl p-6 text-white">
                             <div class="flex items-center space-x-3 mb-4">
@@ -542,8 +577,8 @@ pub async fn download_page() -> Html<&'static str> {
                             <!-- Download Button -->
                             <div class="text-center mb-4">
                                 ${fileName ? `<div class="mb-2 text-sm text-white/70">${fileName}</div>` : ''}
-                                <a href="${data.file_url}" target="_blank" class="inline-flex items-center space-x-2 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <a href="${data.file_url}" target="_blank" class="inline-flex items-center space-x-2 bg-green-500 hover:bg-green-600 text-white font-semibold py-4 px-8 rounded-xl transition-all duration-300 transform hover:scale-105 text-lg">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                     </svg>
                                     <span>Download File</span>
@@ -569,6 +604,8 @@ pub async fn download_page() -> Html<&'static str> {
                                     </media-control-bar>
                                 </media-controller>
                             </div>
+                            
+                            ${historyHTML}
                         </div>
                     `;
                 } else {
