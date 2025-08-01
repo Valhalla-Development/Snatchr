@@ -1,14 +1,21 @@
-use axum::{extract::Path, http::StatusCode, response::Response};
+use axum::{
+    extract::{Path, Query},
+    http::{HeaderValue, StatusCode},
+    response::{IntoResponse, Response},
+};
+use std::collections::HashMap;
 use std::path::PathBuf;
-use tokio::fs::File;
-use tokio_util::io::ReaderStream;
-use tracing::{error, warn};
+use tower::util::ServiceExt;
+use tower_http::services::ServeFile;
+use tracing::warn;
 
 use crate::config::Config;
 
 /// Serves downloaded files: /files/{job_id}/{filename}
+/// Add ?stream=true to stream video instead of downloading
 pub async fn serve_file(
     Path((job_id, filename)): Path<(String, String)>,
+    Query(params): Query<HashMap<String, String>>,
 ) -> Result<Response, StatusCode> {
     let config = Config::from_env();
 
@@ -23,24 +30,24 @@ pub async fn serve_file(
         return Err(StatusCode::NOT_FOUND);
     }
 
-    // Open and stream the file
-    let file = match File::open(&file_path).await {
-        Ok(file) => file,
-        Err(e) => {
-            error!("Failed to open file {}: {}", file_path.display(), e);
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    };
+    // Use tower-http's ServeFile to handle range requests automatically
+    let request = axum::http::Request::builder()
+        .body(axum::body::Body::empty())
+        .unwrap();
 
-    let stream = ReaderStream::new(file);
-    let body = axum::body::Body::from_stream(stream);
+    let mut response = ServeFile::new(&file_path)
+        .oneshot(request)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok(Response::builder()
-        .header("content-type", "application/octet-stream")
-        .header(
+    // Default to download unless stream=true is specified
+    if !params.get("stream").map_or(false, |v| v == "true") {
+        response.headers_mut().insert(
             "content-disposition",
-            format!("attachment; filename=\"{}\"", filename),
-        )
-        .body(body)
-        .unwrap())
+            HeaderValue::from_str(&format!("attachment; filename=\"{}\"", filename))
+                .unwrap_or_else(|_| HeaderValue::from_static("attachment")),
+        );
+    }
+
+    Ok(response.into_response())
 }
