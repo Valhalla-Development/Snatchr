@@ -32,6 +32,16 @@ pub async fn run_server() {
         .route("/download", post(download_handler)) // POST /download -> download_handler
         .route("/files/{job_id}/{filename}", get(serve_file)); // GET /files/:job_id/:filename -> serve_file
 
+    // Print web UI status
+    if config.enable_web_ui {
+        println!("Web UI enabled at http://{}", config.address());
+    } else {
+        println!(
+            "Web UI disabled - API only mode at http://{}",
+            config.address()
+        );
+    }
+
     // Bind TCP listener to the configured address
     let listener = TcpListener::bind(&config.address()).await.unwrap();
 
