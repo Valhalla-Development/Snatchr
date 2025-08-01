@@ -17,6 +17,7 @@ pub async fn download_page() -> Html<&'static str> {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Snatchr - Video Downloader</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/media-chrome@4/+esm"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -551,14 +552,22 @@ pub async fn download_page() -> Html<&'static str> {
                             
                             <!-- Video Player -->
                             <div>
-                                <video 
-                                    controls 
-                                    class="w-full rounded-xl shadow-lg"
-                                    poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9'%3E%3Crect width='16' height='9' fill='%23000'/%3E%3C/svg%3E"
-                                >
-                                    <source src="${data.file_url}" type="video/mp4">
-                                    Your browser does not support the video tag.
-                                </video>
+                                <media-controller class="w-full rounded-xl shadow-lg overflow-hidden">
+                                    <video 
+                                        slot="media"
+                                        src="${data.file_url}"
+                                    >
+                                        Your browser does not support the video tag.
+                                    </video>
+                                    <media-control-bar>
+                                        <media-play-button></media-play-button>
+                                        <media-mute-button></media-mute-button>
+                                        <media-volume-range></media-volume-range>
+                                        <media-time-range></media-time-range>
+                                        <media-pip-button></media-pip-button>
+                                        <media-fullscreen-button></media-fullscreen-button>
+                                    </media-control-bar>
+                                </media-controller>
                             </div>
                         </div>
                     `;
