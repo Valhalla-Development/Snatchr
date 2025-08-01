@@ -477,6 +477,7 @@ pub async fn download_page() -> Html<&'static str> {
                         This may take a few minutes depending on the video size
                     </div>
                 </div>
+                <div id="loadingHistory"></div>
             </div>
 
             <!-- Result -->
@@ -557,6 +558,28 @@ pub async fn download_page() -> Html<&'static str> {
                 return;
             }
             
+            // Generate current history HTML before hiding
+            const currentHistoryHTML = downloadHistory.length > 0 ? `
+                <div class="mt-6 pt-6 border-t border-white/20">
+                    <h4 class="text-sm font-semibold text-white/80 mb-3">Previous Downloads</h4>
+                    <div class="space-y-2">
+                        ${downloadHistory.map(item => `
+                            <div class="flex items-center justify-between p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-sm font-medium text-white truncate">${item.fileName}</div>
+                                    <div class="text-xs text-white/60">Generated at ${item.timestamp}</div>
+                                </div>
+                                <a href="${item.fileUrl}" target="_blank" class="ml-3 p-2 text-white/70 hover:text-white transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                </a>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : '';
+
             // Reset UI
             button.disabled = true;
             button.innerHTML = `
@@ -565,6 +588,10 @@ pub async fn download_page() -> Html<&'static str> {
                     <span>Processing...</span>
                 </span>
             `;
+            // Show history in loading state
+            const loadingHistory = document.getElementById('loadingHistory');
+            loadingHistory.innerHTML = currentHistoryHTML;
+            
             loading.classList.remove('hidden');
             result.classList.add('hidden');
             
@@ -574,6 +601,9 @@ pub async fn download_page() -> Html<&'static str> {
                 
                 let data;
                 if (typeof testMode !== 'undefined' && testMode) {
+                    // Simulate loading delay
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    
                     // Simulate successful response
                     data = {
                         success: true,
