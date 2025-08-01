@@ -661,7 +661,7 @@ pub async fn download_page() -> Html<&'static str> {
                                 <media-controller class="w-full rounded-xl shadow-lg overflow-hidden">
                                     <video 
                                         slot="media"
-                                        src="${data.file_url}"
+                                        src="${data.file_url}?stream=true"
                                     >
                                         Your browser does not support the video tag.
                                     </video>
