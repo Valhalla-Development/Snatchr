@@ -533,13 +533,29 @@ pub async fn download_page() -> Html<&'static str> {
                                 </div>
                                 <h3 class="text-xl font-bold">Download Complete!</h3>
                             </div>
-                            <p class="text-white/80 mb-4">Your video has been successfully downloaded and is ready for you.</p>
-                            <a href="${data.file_url}" target="_blank" class="inline-flex items-center space-x-2 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                </svg>
-                                <span>Download File</span>
-                            </a>
+                            <p class="text-white/80 mb-4">Your video has been successfully downloaded and is ready to view.</p>
+                            
+                            <!-- Download Button -->
+                            <div class="text-center mb-4">
+                                <a href="${data.file_url}" target="_blank" class="inline-flex items-center space-x-2 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                    <span>Download File</span>
+                                </a>
+                            </div>
+                            
+                            <!-- Video Player -->
+                            <div>
+                                <video 
+                                    controls 
+                                    class="w-full rounded-xl shadow-lg"
+                                    poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 9'%3E%3Crect width='16' height='9' fill='%23000'/%3E%3C/svg%3E"
+                                >
+                                    <source src="${data.file_url}" type="video/mp4">
+                                    Your browser does not support the video tag.
+                                </video>
+                            </div>
                         </div>
                     `;
                 } else {
