@@ -523,6 +523,9 @@ pub async fn download_page() -> Html<&'static str> {
                     // Store the URL to prevent duplicate downloads
                     lastDownloadedUrl = url;
                     
+                    // Extract filename from the URL
+                    const fileName = data.file_url.split('/').pop().replaceAll('_', ' ');
+                    
                     result.innerHTML = `
                         <div class="bg-green-500/20 border border-green-500/30 rounded-2xl p-6 text-white">
                             <div class="flex items-center space-x-3 mb-4">
@@ -537,6 +540,7 @@ pub async fn download_page() -> Html<&'static str> {
                             
                             <!-- Download Button -->
                             <div class="text-center mb-4">
+                                ${fileName ? `<div class="mb-2 text-sm text-white/70">${fileName}</div>` : ''}
                                 <a href="${data.file_url}" target="_blank" class="inline-flex items-center space-x-2 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
