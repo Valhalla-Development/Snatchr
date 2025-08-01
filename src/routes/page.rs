@@ -496,15 +496,28 @@ pub async fn download_page() -> Html<&'static str> {
             result.classList.add('hidden');
             
             try {
-                const response = await fetch('/download', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ url: url })
-                });
+                // TEST MODE: Uncomment the next line to simulate success for testing
+                // const testMode = true;
                 
-                const data = await response.json();
+                let data;
+                if (typeof testMode !== 'undefined' && testMode) {
+                    // Simulate successful response
+                    data = {
+                        success: true,
+                        file_url: `https://localhost:3000/files/06a75bee-bc99-4894-b184-c497d70ca7f5/video.mp4`
+                    };
+                } else {
+                    // Real API call
+                    const response = await fetch('/download', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ url: url })
+                    });
+                    
+                    data = await response.json();
+                }
                 
                 if (data.success) {
                     // Store the URL to prevent duplicate downloads
