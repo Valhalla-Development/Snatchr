@@ -30,7 +30,7 @@ services:
       - AUDIO_CODEC=Opus
     image: ghcr.io/valhalla-development/snatchr:latest
     ports:
-      - "3000:3000"
+      - "3000:${PORT:-3000}"
     restart: unless-stopped
     volumes:
       - ./downloads:/app/downloads
