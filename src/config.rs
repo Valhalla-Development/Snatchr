@@ -11,6 +11,7 @@
 use dotenvy::dotenv;
 use std::env;
 use strum_macros::{EnumIter, EnumString};
+
 use yt_dlp::model::{AudioCodecPreference, AudioQuality, VideoCodecPreference, VideoQuality};
 
 /*
@@ -180,9 +181,9 @@ impl Config {
                 default.cleanup_after_minutes,
             ),
             video_quality: parse_env_enum("VIDEO_QUALITY", VideoQualityEnv::Best).into(),
-            video_codec: parse_env_enum("VIDEO_CODEC", VideoCodecPreferenceEnv::VP9).into(),
+            video_codec: parse_env_codec_enum("VIDEO_CODEC", VideoCodecPreferenceEnv::VP9).into(),
             audio_quality: parse_env_enum("AUDIO_QUALITY", AudioQualityEnv::Best).into(),
-            audio_codec: parse_env_enum("AUDIO_CODEC", AudioCodecPreferenceEnv::Opus).into(),
+            audio_codec: parse_env_codec_enum("AUDIO_CODEC", AudioCodecPreferenceEnv::Opus).into(),
             max_concurrent_downloads: parse_env(
                 "MAX_CONCURRENT_DOWNLOADS",
                 default.max_concurrent_downloads,
@@ -220,6 +221,20 @@ where
  * Returns default enum value if parsing fails.
  */
 fn parse_env_enum<T>(key: &str, default: T) -> T
+where
+    T: std::str::FromStr,
+{
+    env::var(key)
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(default)
+}
+
+/*
+ * Helper to parse environment variables into codec enums (lowercase).
+ * Returns default enum value if parsing fails.
+ */
+fn parse_env_codec_enum<T>(key: &str, default: T) -> T
 where
     T: std::str::FromStr,
 {
