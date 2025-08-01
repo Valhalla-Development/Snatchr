@@ -131,6 +131,9 @@ pub struct Config {
     // Performance tuning parameters
     pub max_concurrent_downloads: usize,
     pub timeout_seconds: u64,
+
+    // Web interface settings
+    pub enable_web_ui: bool,
 }
 
 /*
@@ -152,6 +155,7 @@ impl Default for Config {
             audio_codec: AudioCodecPreference::Opus,
             max_concurrent_downloads: 5,
             timeout_seconds: 300, // 5 minutes
+            enable_web_ui: true,
         }
     }
 }
@@ -184,6 +188,7 @@ impl Config {
                 default.max_concurrent_downloads,
             ),
             timeout_seconds: parse_env("TIMEOUT_SECONDS", default.timeout_seconds),
+            enable_web_ui: parse_env("ENABLE_WEB_UI", default.enable_web_ui),
         }
     }
 

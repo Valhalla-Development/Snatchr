@@ -10,6 +10,8 @@ services:
       - EXTERNAL_URL=
       # Only used if EXTERNAL_URL is blank
       - USE_HTTPS=
+      # Enable web UI
+      - ENABLE_WEB_UI=true
       # Directory where downloaded files will be saved
       - DOWNLOAD_DIR=./downloads
       # Automatically delete downloads after this many minutes (set to 0 to disable)
