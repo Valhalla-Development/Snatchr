@@ -222,6 +222,20 @@ This project is licensed under the GPL-3.0 License - see the LICENSE file for de
 - [Rust](https://www.rust-lang.org/) for the blazing-fast and memory-safe foundation
 - All contributors who help improve this project
 
+## 🚀 What's Next?
+
+We're constantly working to make Snatchr even better! Here's what we're cooking up:
+
+### 🎯 Upcoming Features
+- **🆔 Video ID Integration** - Replace job IDs with actual YouTube video IDs for better tracking and caching
+- **💾 Smart Caching System** - Cache downloaded videos to avoid re-downloading the same content
+- **🌐 Multi-Platform Support** - Support for more video platforms beyond YouTube
+
+### 🤝 Community Ideas
+Have a feature request or idea? We'd love to hear it! Open an issue or join our [Discord](https://discord.gg/Q3ZhdRJ) to discuss.
+
+---
+
 ## 📬 Support & Community
 
 Got questions or need help? Join our [Discord server](https://discord.gg/Q3ZhdRJ) for support and to connect with other bot developers!
