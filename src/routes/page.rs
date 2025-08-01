@@ -1,13 +1,84 @@
+use crate::config::Config;
 use axum::response::Html;
 
 /*
  * HTTP handler for serving the download page.
  *
  * Returns an HTML page with JavaScript functionality to make download requests.
+ * Shows different content based on whether web UI is enabled or disabled.
  */
 
 #[axum::debug_handler]
 pub async fn download_page() -> Html<&'static str> {
+    let config = Config::from_env();
+
+    if !config.enable_web_ui {
+        return Html(
+            r#"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snatchr - API Only Mode</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen flex items-center justify-center p-4">
+    <div class="glass-effect rounded-2xl p-8 text-white text-center max-w-md">
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold mb-2">🎬 Snatchr</h1>
+            <p class="text-white/80">Lightning-Fast Video Downloader! ⚡</p>
+        </div>
+        
+        <div class="bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-6 mb-6">
+            <div class="flex items-center space-x-3 mb-4">
+                <div class="w-10 h-10 bg-yellow-500/30 rounded-full flex items-center justify-center">
+                    <svg class="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold">Web UI Disabled</h3>
+            </div>
+            <p class="text-white/80 mb-4">The web interface is currently disabled. This server is running in API-only mode.</p>
+        </div>
+        
+        <div class="space-y-4">
+            <h4 class="text-lg font-semibold">📡 API Endpoints</h4>
+            <div class="text-left space-y-2 text-sm">
+                <div class="bg-white/5 rounded-lg p-3">
+                    <div class="font-mono text-green-400">POST /download</div>
+                    <div class="text-white/60">Download a video from YouTube</div>
+                </div>
+                <div class="bg-white/5 rounded-lg p-3">
+                    <div class="font-mono text-green-400">GET /health</div>
+                    <div class="text-white/60">Check server health</div>
+                </div>
+                <div class="bg-white/5 rounded-lg p-3">
+                    <div class="font-mono text-green-400">GET /files/{job_id}/{filename}</div>
+                    <div class="text-white/60">Access downloaded files</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-6 text-xs text-white/50">
+            To enable the web interface, set <code class="bg-white/10 px-1 rounded">ENABLE_WEB_UI=true</code>
+        </div>
+    </div>
+</body>
+</html>
+        "#,
+        );
+    }
     Html(
         r#"
 <!DOCTYPE html>
