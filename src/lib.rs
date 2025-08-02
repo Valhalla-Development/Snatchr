@@ -30,7 +30,7 @@ pub async fn run_server() {
         .route("/", get(download_page)) // GET / -> download_page (HTML interface)
         .route("/health", get(health_check)) // GET /health -> health_check
         .route("/download", post(download_handler)) // POST /download -> download_handler
-        .route("/files/{job_id}/{filename}", get(serve_file)); // GET /files/:job_id/:filename -> serve_file
+        .route("/files/{video_id}/{filename}", get(serve_file)); // GET /files/:video_id/:filename -> serve_file
 
     // Bind TCP listener to the configured address
     let listener = TcpListener::bind(&config.address()).await.unwrap();
