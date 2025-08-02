@@ -78,13 +78,7 @@ This project provides a robust HTTP API for downloading videos from YouTube usin
 
 Snatchr includes a beautiful, modern web interface for easy video downloading!
 
-<div align="center">
-  <video width="100%" controls>
-    <source src="https://share.valhalladev.org/u/Snatchr_WebUI.mov" type="video/mp4">
-    Your browser does not support the video tag.
-  </video>
-  <p><em>🎬 Watch the web interface in action!</em></p>
-</div>
+https://github.com/user-attachments/assets/77745296-b7db-4814-93c2-5002b0eabd56
 
 ### ✨ Features
 - **🎬 Instant Video Preview** - Watch downloaded videos directly in the browser with our sleek video player
