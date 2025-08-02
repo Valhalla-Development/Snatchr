@@ -63,13 +63,20 @@ pub async fn run_server() {
     println!("│   └── AUDIO_CODEC = {:?}", config.audio_codec);
 
     println!("├── 📋 Status:");
-    if std::fs::read_to_string(".env").is_err() {
+
+    // Check if we're in Docker via environment variable
+    let in_docker = std::env::var("DOCKER_ENV").is_ok();
+
+    if in_docker {
+        println!("│   └── 🐳 Running in Docker container");
+    } else if std::fs::read_to_string(".env").is_err() {
         println!(
             "│   └── ⚠️  No .env file found, using defaults - create one or copy .env.example"
         );
     } else {
         println!("│   └── ✅ Configuration loaded from .env");
     }
+
     println!("└── 🚀 Ready!");
 
     println!();
