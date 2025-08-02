@@ -4,6 +4,7 @@ use yt_dlp::Youtube;
 use yt_dlp::fetcher::deps::{Libraries, LibraryInstaller};
 use yt_dlp::fetcher::download_manager::ManagerConfig;
 extern crate sanitize_filename;
+use std::cell::RefCell;
 use std::time::{Duration, Instant};
 use tracing::{error, info};
 
@@ -106,16 +107,56 @@ pub fn download_video(
     // Create a runtime to run async video info fetching and downloading
     let rt = tokio::runtime::Runtime::new()?;
 
+    // Store video_id
+    let cached_video_id = RefCell::new(Option::<String>::None);
+
     let result = rt.block_on(async {
         info!(job_id = %job_id, url = %url, "Fetching video info");
         let video = fetcher.fetch_video_infos(url.clone()).await?;
 
         info!(job_id = %job_id, url = %url, video_title = %video.title, "Video info fetched");
 
-        // Prepare job directory for storing downloaded file
-        let job_dir = PathBuf::from(&config.download_dir).join(&job_id);
-        std::fs::create_dir_all(&job_dir)?;
-        info!(job_id = %job_id, url = %url, path = %job_dir.display(), "Created job directory");
+        // Use video ID for caching
+        let video_id = &video.id;
+        *cached_video_id.borrow_mut() = Some(video_id.clone());
+        let cache_dir = PathBuf::from(&config.download_dir).join(video_id);
+
+        // Check if video is already cached
+        if cache_dir.exists() {
+            // Look for existing video file in cache directory
+            if let Ok(entries) = std::fs::read_dir(&cache_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_file() && path.extension().map_or(false, |ext| ext == "mp4") {
+                        // Verify file is not empty/corrupted
+                        if let Ok(metadata) = std::fs::metadata(&path) {
+                            if metadata.len() > 0 {
+                                let duration = start.elapsed();
+                                info!(
+                                    job_id = %job_id,
+                                    url = %url,
+                                    video_id = %video_id,
+                                    path = %path.display(),
+                                    duration = format_args!("{:.2}s", duration.as_secs_f64()),
+                                    "Video found in cache, returning cached file"
+                                );
+                                return Ok(path);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Cache miss or invalid cache - proceed with download
+        std::fs::create_dir_all(&cache_dir)?;
+        info!(
+            job_id = %job_id,
+            url = %url,
+            video_id = %video_id,
+            path = %cache_dir.display(),
+            "Created cache directory for video ID"
+        );
 
         // Helper function to clean the filename
         fn clean(filename: &str) -> String {
@@ -145,13 +186,14 @@ pub fn download_video(
         // Sanitize filename to avoid illegal characters
         let relative_path = format!(
             "{}/{}.mp4",
-            job_id,
+            video_id,
             clean(&sanitize_filename::sanitize(&video.title))
         );
 
         info!(
             job_id = %job_id,
             url = %url,
+            video_id = %video_id,
             video_title = %video.title,
             quality = ?config.video_quality,
             video_codec = ?config.video_codec,
@@ -172,17 +214,20 @@ pub fn download_video(
             )
             .await?;
 
-        Ok::<_, Box<dyn std::error::Error>>((video, video_path))
+        Ok::<_, Box<dyn std::error::Error>>(video_path)
     });
 
     let duration = start.elapsed();
 
     // Log and return results based on success or failure
     match result {
-        Ok((_video, video_path)) => {
+        Ok(video_path) => {
+            let video_id_borrowed = cached_video_id.borrow();
+            let video_id_log = video_id_borrowed.as_deref().unwrap_or("unknown");
             info!(
                 job_id = %job_id,
                 url = %url,
+                video_id = %video_id_log,
                 path = %video_path.display(),
                 duration = format_args!("{:.2}s", duration.as_secs_f64()),
                 "Download completed successfully"
