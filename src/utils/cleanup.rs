@@ -117,13 +117,18 @@ pub fn cleanup_old_files() -> Result<usize, CleanupError> {
 
 // Removes a file or directory if it's older than the cutoff time
 fn remove_if_old(path: &PathBuf, cutoff_time: SystemTime) -> Result<(), CleanupError> {
-    let metadata = fs::metadata(path)?;
-
-    // Use modified time instead of created time for better cross-platform compatibility
-    let modified_time = metadata.modified()?;
+    // For video directories, check the .last_accessed marker file
+    let access_marker = path.join(".last_accessed");
+    let access_time = if access_marker.exists() {
+        // Use the modification time of the access marker
+        fs::metadata(&access_marker)?.modified()?
+    } else {
+        // Fall back to directory creation time for directories without access markers
+        fs::metadata(path)?.modified()?
+    };
 
     // Remove if file is older than cutoff time
-    if modified_time < cutoff_time {
+    if access_time < cutoff_time {
         if path.is_dir() {
             fs::remove_dir_all(path)?;
         } else {
