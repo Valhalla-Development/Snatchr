@@ -31,12 +31,16 @@ pub async fn serve_file(
     }
 
     // Update access marker for smart caching
-    let access_marker = file_path.parent().unwrap().join(".last_accessed");
+    let is_stream = params.get("stream").map_or(false, |v| v == "true");
 
-    if let Err(e) = std::fs::write(&access_marker, "") {
-        warn!("Failed to update access marker for {}: {}", video_id, e);
-    } else {
-        info!("Successfully updated access marker for video {}", video_id);
+    if !is_stream {
+        let access_marker = file_path.parent().unwrap().join(".last_accessed");
+
+        if let Err(e) = std::fs::write(&access_marker, "") {
+            warn!("Failed to update access marker for {}: {}", video_id, e);
+        } else {
+            info!("Successfully updated access marker for video {}", video_id);
+        }
     }
 
     // Use tower-http's ServeFile to handle range requests automatically
