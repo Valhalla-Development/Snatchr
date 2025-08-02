@@ -1600,6 +1600,7 @@ version = "0.1.94"
 dependencies = [
  "axum",
  "dotenvy",
+ "regex",
  "sanitize-filename",
  "serde",
  "serde_json",
