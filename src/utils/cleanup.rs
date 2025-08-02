@@ -88,8 +88,8 @@ pub fn cleanup_old_files() -> Result<usize, CleanupError> {
         let path = entry.path();
 
         if path.is_dir() {
-            // Check if this is a UUID directory (job directory)
-            if is_uuid_directory(&path) {
+            // Check if this is a video directory (video_id directory)
+            if is_video_directory(&path) {
                 if let Ok(()) = remove_if_old(&path, cutoff_time) {
                     info!("Removed old download directory: {}", path.display());
                     removed_count += 1;
@@ -151,28 +151,11 @@ fn is_temporary_file(path: &PathBuf) -> bool {
     false
 }
 
-// Checks if a directory name looks like a UUID (job ID)
-fn is_uuid_directory(path: &PathBuf) -> bool {
+// Checks if a directory name is not "cache"
+fn is_video_directory(path: &PathBuf) -> bool {
     if let Some(name) = path.file_name() {
         if let Some(name_str) = name.to_str() {
-            // More robust UUID v4 validation
-            if name_str.len() == 36 {
-                let chars: Vec<char> = name_str.chars().collect();
-
-                // Check positions of hyphens
-                if chars[8] == '-' && chars[13] == '-' && chars[18] == '-' && chars[23] == '-' {
-                    // Check that all other characters are hexadecimal
-                    for (i, &ch) in chars.iter().enumerate() {
-                        if i == 8 || i == 13 || i == 18 || i == 23 {
-                            continue; // Skip hyphens
-                        }
-                        if !ch.is_ascii_hexdigit() {
-                            return false;
-                        }
-                    }
-                    return true;
-                }
-            }
+            return name_str != "cache";
         }
     }
     false
