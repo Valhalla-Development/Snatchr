@@ -13,7 +13,6 @@
  */
 
 use axum::Json;
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 use tokio::time::{Duration, timeout};
 use tracing::error;
@@ -22,6 +21,7 @@ use uuid::Uuid;
 
 use crate::config::Config;
 use crate::handlers::downloader::download_video;
+use crate::utils::youtube::is_valid_youtube_url;
 
 #[derive(Deserialize)]
 pub struct DownloadRequest {
@@ -44,9 +44,7 @@ pub async fn download_handler(Json(payload): Json<DownloadRequest>) -> Json<Down
     let config = Config::from_env();
 
     // Validate YouTube URL format
-    let youtube_regex = Regex::new(r"https?://(?:www\.|m\.)?youtube\.com/(?:watch\?v=|shorts/)[^\s]+|https?://youtu\.be/[^\s]+").unwrap();
-
-    if !youtube_regex.is_match(&url) {
+    if !is_valid_youtube_url(&url) {
         return Json(DownloadResponse {
             success: false,
             file_url: None,
