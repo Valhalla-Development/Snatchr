@@ -99,9 +99,9 @@ pub async fn download_handler(Json(payload): Json<DownloadRequest>) -> Json<Down
         .strip_prefix(&config.download_dir)
         .unwrap_or(&file_path);
 
-    // Extract job_id and filename from the relative path
+    // Extract video_id and filename from the relative path
     let mut path_parts = relative_path.iter();
-    let job_id = path_parts.next().unwrap().to_string_lossy();
+    let video_id = path_parts.next().unwrap().to_string_lossy();
     let filename = path_parts.next().unwrap().to_string_lossy();
 
     let base_url = if config.external_url.is_empty() {
@@ -117,7 +117,7 @@ pub async fn download_handler(Json(payload): Json<DownloadRequest>) -> Json<Down
         config.external_url
     };
 
-    let file_url = format!("{}/files/{}/{}", base_url, job_id, encode(&filename));
+    let file_url = format!("{}/files/{}/{}", base_url, video_id, encode(&filename));
 
     Json(DownloadResponse {
         success: true,
