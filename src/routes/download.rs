@@ -13,6 +13,7 @@
  */
 
 use axum::Json;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use tokio::time::{Duration, timeout};
 use tracing::error;
@@ -41,6 +42,17 @@ pub async fn download_handler(Json(payload): Json<DownloadRequest>) -> Json<Down
     let job_id = Uuid::new_v4().to_string();
     let url = payload.url.clone();
     let config = Config::from_env();
+
+    // Validate YouTube URL format
+    let youtube_regex = Regex::new(r"https?://(?:www\.|m\.)?youtube\.com/(?:watch\?v=|shorts/)[^\s]+|https?://youtu\.be/[^\s]+").unwrap();
+
+    if !youtube_regex.is_match(&url) {
+        return Json(DownloadResponse {
+            success: false,
+            file_url: None,
+            error: Some("Invalid YouTube URL format".to_string()),
+        });
+    }
 
     // Run the download_video function on a blocking thread since it performs sync operations
     let job_id_clone = job_id.clone();
