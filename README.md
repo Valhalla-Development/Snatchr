@@ -52,8 +52,18 @@ This project provides a robust HTTP API for downloading videos from YouTube usin
       <p>Automated cleanup of old downloads with configurable retention periods and scheduling.</p>
     </td>
     <td width="50%">
+      <h3>⚡ Intelligent Caching</h3>
+      <p>Smart video caching by YouTube ID - never download the same video twice! Instant returns for cached content.</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
       <h3>📊 Comprehensive Logging</h3>
       <p>Detailed request tracking, error handling, and performance monitoring with structured logging.</p>
+    </td>
+    <td width="50%">
+      <h3>🎯 Request Tracking</h3>
+      <p>Unique job IDs for each request with full traceability from HTTP handler to download completion.</p>
     </td>
   </tr>
 </table>
@@ -181,13 +191,39 @@ curl -X POST "http://localhost:3000/download" \
 ```json
 {
   "success": true,
-  "file_url": "http://localhost:3000/files/550e8400-e29b-41d4-a716-446655440000/file_name.mp4"
+  "file_url": "http://localhost:3000/files/dQw4w9WgXcQ/file_name.mp4"
 }
 ```
 
 ## 🧹 Automatic Cleanup
 
 The server automatically cleans up old downloads based on your `CLEANUP_AFTER_MINUTES` setting. Cleanup runs periodically in the background and logs all operations.
+
+## ⚡ Smart Caching System
+
+Snatchr features intelligent video caching that dramatically improves performance:
+
+### 🎯 How It Works
+- **Video ID Caching**: Videos are stored using their YouTube video ID (e.g., `dQw4w9WgXcQ`)
+- **Instant Returns**: If a video is already cached, it's returned immediately without re-downloading
+- **Bandwidth Savings**: Never download the same video twice
+- **Automatic Validation**: Cached files are verified to ensure they're not corrupted
+
+### 📁 Cache Structure
+```
+downloads/
+├── dQw4w9WgXcQ/          # Video ID directory
+│   └── video_title.mp4   # Cached video file
+├── zwMEhBq4kYM/          # Another video ID
+│   └── another_video.mp4
+└── cache/                # System cache (preserved)
+```
+
+### 🚀 Performance Benefits
+- **First Download**: Normal speed (downloads and caches)
+- **Subsequent Downloads**: Instant! (returns cached file)
+- **Multiple Users**: Share cached content across all users
+- **Server Efficiency**: Reduced bandwidth and processing load
 
 ## 🤝 Contributing
 
@@ -227,8 +263,6 @@ This project is licensed under the GPL-3.0 License - see the LICENSE file for de
 We're constantly working to make Snatchr even better! Here's what we're cooking up:
 
 ### 🎯 Upcoming Features
-- **🆔 Video ID Integration** - Replace job IDs with actual YouTube video IDs for better tracking and caching
-- **💾 Smart Caching System** - Cache downloaded videos to avoid re-downloading the same content
 - **🌐 Multi-Platform Support** - Support for more video platforms beyond YouTube
 
 ### 🤝 Community Ideas
