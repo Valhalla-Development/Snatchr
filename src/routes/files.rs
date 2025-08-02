@@ -11,17 +11,17 @@ use tracing::warn;
 
 use crate::config::Config;
 
-/// Serves downloaded files: /files/{job_id}/{filename}
+/// Serves downloaded files: /files/{video_id}/{filename}
 /// Add ?stream=true to stream video instead of downloading
 pub async fn serve_file(
-    Path((job_id, filename)): Path<(String, String)>,
+    Path((video_id, filename)): Path<(String, String)>,
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<Response, StatusCode> {
     let config = Config::from_env();
 
-    // Construct path: download_dir/job_id/filename
+    // Construct path: download_dir/video_id/filename
     let file_path = PathBuf::from(&config.download_dir)
-        .join(&job_id)
+        .join(&video_id)
         .join(&filename);
 
     // Check if file exists and is actually a file
