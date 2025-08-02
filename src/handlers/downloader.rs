@@ -1,5 +1,4 @@
 use crate::config::Config;
-use crate::utils::youtube::validate_and_extract_video_id;
 use std::path::PathBuf;
 use yt_dlp::Youtube;
 use yt_dlp::fetcher::deps::{Libraries, LibraryInstaller};
@@ -112,18 +111,15 @@ pub fn download_video(
     let cached_video_id = RefCell::new(Option::<String>::None);
 
     let result = rt.block_on(async {
-        // Extract video ID from URL
-        let video_id = match validate_and_extract_video_id(&url) {
-            Some(id) => id,
-            None => {
-                error!(job_id = %job_id, url = %url, "Failed to extract video ID from URL");
-                return Err("Invalid YouTube URL format".into());
-            }
-        };
-        
-        info!(job_id = %job_id, url = %url, video_id = %video_id, "Extracted video ID from URL");
+        info!(job_id = %job_id, url = %url, "Fetching video info");
+        let video = fetcher.fetch_video_infos(url.clone()).await?;
+
+        info!(job_id = %job_id, url = %url, video_title = %video.title, "Video info fetched");
+
+        // Use video ID for caching
+        let video_id = &video.id;
         *cached_video_id.borrow_mut() = Some(video_id.clone());
-        let cache_dir = PathBuf::from(&config.download_dir).join(&video_id);
+        let cache_dir = PathBuf::from(&config.download_dir).join(video_id);
 
         // Check if video is already cached
         if cache_dir.exists() {
@@ -153,12 +149,6 @@ pub fn download_video(
         }
 
         // Cache miss or invalid cache - proceed with download
-        info!(job_id = %job_id, url = %url, video_id = %video_id, "Cache miss, fetching video info");
-        let video = fetcher.fetch_video_infos(url.clone()).await?;
-        
-        info!(job_id = %job_id, url = %url, video_id = %video_id, video_title = %video.title, "Video info fetched");
-        
-        // Create cache directory
         std::fs::create_dir_all(&cache_dir)?;
         info!(
             job_id = %job_id,
