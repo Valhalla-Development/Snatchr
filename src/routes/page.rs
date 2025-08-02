@@ -492,8 +492,7 @@ pub async fn download_page() -> Html<&'static str> {
     <script>
         // URL validation function
         function isValidVideoUrl(url) {
-            const youtubePattern = /https?:\/\/(?:www\.|m\.)?youtube\.com\/(?:watch\?v=|shorts\/)[^\s]+|https?:\/\/youtu\.be\/[^\s]+/i;
-            
+            const youtubePattern = /^https?:\/\/(?:www\.|m\.)?youtube\.com\/(?:watch\?v=|shorts\/)([a-zA-Z0-9_-]{11})|^https?:\/\/youtu\.be\/([a-zA-Z0-9_-]{11})/i;
             return youtubePattern.test(url);
         }
 
