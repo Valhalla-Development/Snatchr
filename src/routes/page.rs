@@ -65,7 +65,7 @@ pub async fn download_page() -> Html<&'static str> {
                     <div class="text-white/60">Check server health</div>
                 </div>
                 <div class="bg-white/5 rounded-lg p-3">
-                    <div class="font-mono text-green-400">GET /files/{job_id}/{filename}</div>
+                    <div class="font-mono text-green-400">GET /files/{video_id}/{filename}</div>
                     <div class="text-white/60">Access downloaded files</div>
                 </div>
             </div>
