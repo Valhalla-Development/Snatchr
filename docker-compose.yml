@@ -2,7 +2,9 @@ services:
   snatchr:
     container_name: snatchr
     environment:
-      # Port for the application server
+      # Docker detection flag
+      - DOCKER_ENV=true
+      # Port for the application server (internal)
       - PORT=3000
       # Host address for the server (e.g., 127.0.0.1 for localhost)
       - HOST=0.0.0.0
