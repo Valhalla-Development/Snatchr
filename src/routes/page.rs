@@ -414,7 +414,7 @@ pub async fn download_page() -> Html<&'static str> {
                 <!-- URL Input -->
                 <div class="space-y-2">
                     <label for="videoUrl" class="block text-white font-semibold text-sm uppercase tracking-wide">
-                        Video URL
+                        YouTube URL
                     </label>
                     <div class="relative">
                         <input 
@@ -492,12 +492,9 @@ pub async fn download_page() -> Html<&'static str> {
     <script>
         // URL validation function
         function isValidVideoUrl(url) {
-            const youtubePatterns = [
-                /^https?:\/\/(?:www\.)?youtube\.com\/watch\?v=[^&]+/,
-                /^https?:\/\/youtu\.be\/[^&]+/
-            ];
+            const youtubePattern = /https?:\/\/(?:www\.|m\.)?youtube\.com\/(?:watch\?v=|shorts\/)[^\s]+|https?:\/\/youtu\.be\/[^\s]+/i;
             
-            return youtubePatterns.some(pattern => pattern.test(url));
+            return youtubePattern.test(url);
         }
 
         // Track download history
