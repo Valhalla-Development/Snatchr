@@ -78,23 +78,32 @@ This project provides a robust HTTP API for downloading videos from YouTube usin
 
 Snatchr includes a beautiful, modern web interface for easy video downloading!
 
+<div align="center">
+  <video width="100%" controls>
+    <source src="https://share.valhalladev.org/u/Snatchr_WebUI.mov" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+  <p><em>🎬 Watch the web interface in action!</em></p>
+</div>
+
 ### ✨ Features
-- **🎬 Video Preview** - Watch downloaded videos directly in the browser
-- **📋 Download History** - Keep track of your previous downloads
-- **🎨 Modern UI** - Clean, responsive design with Tailwind CSS
-- **⚡ Fast & Simple** - Just paste a YouTube URL and click download
+- **🎬 Instant Video Preview** - Watch downloaded videos directly in the browser with our sleek video player
+- **📋 Smart Download History** - Keep track of all your previous downloads with timestamps and file info
+- **🎨 Modern & Responsive** - Beautiful design that works perfectly on desktop, tablet, and mobile
+- **⚡ Lightning-Fast** - Just paste a YouTube URL and watch your video download in seconds
+- **🎯 One-Click Downloads** - No complex settings, just pure simplicity and speed
 
 ### 🚀 How to Use
 1. Start your Snatchr server
-2. Open your browser and go to `http://localhost:3000`
-3. Paste a YouTube URL in the input field
+2. Open your browser and navigate to `http://localhost:3000`
+3. Paste any YouTube URL in the elegant input field
 4. Click "Download Video" and watch the magic happen!
 
-### 🎯 Tips
-- Use the "Paste" button to quickly paste URLs from your clipboard
-- Downloaded videos appear in the video player for instant preview
-- Previous downloads are saved in the history section
-- The interface works great on mobile devices too!
+### 🎯 Pro Tips
+- **📋 Clipboard Integration** - Use the "Paste" button for instant URL pasting from your clipboard
+- **🎬 Instant Preview** - Downloaded videos appear immediately in the video player for instant gratification
+- **📱 Mobile-First** - The interface is optimized for mobile devices with touch-friendly controls
+- **🔄 Auto-Refresh** - The interface automatically updates to show your latest downloads
 
 ### ⚠️ Important Note
 If you're running locally and your server is bound to `0.0.0.0`, some browsers and extensions may block video playback. Use `localhost` in your browser URL instead of `0.0.0.0` for the best experience.
