@@ -21,7 +21,7 @@ use uuid::Uuid;
 
 use crate::config::Config;
 use crate::handlers::downloader::download_video;
-use crate::utils::youtube::is_valid_youtube_url;
+use yt_dlp::ExtractorDetector;
 
 #[derive(Deserialize)]
 pub struct DownloadRequest {
@@ -43,12 +43,13 @@ pub async fn download_handler(Json(payload): Json<DownloadRequest>) -> Json<Down
     let url = payload.url.clone();
     let config = Config::from_env();
 
-    // Validate YouTube URL format
-    if !is_valid_youtube_url(&url) {
+    // Validate URL support using yt-dlp's multi-extractor detector
+    let detector = ExtractorDetector::new();
+    if !detector.is_supported(&url) {
         return Json(DownloadResponse {
             success: false,
             file_url: None,
-            error: Some("Invalid YouTube URL format".to_string()),
+            error: Some("Unsupported or invalid video URL".to_string()),
         });
     }
 
