@@ -113,7 +113,7 @@ When disabled, only the API endpoints will be available.
 
 Download videos directly from your Apple device with our iOS Shortcut integration!
 
-**🔗 Download:** [Snatchr iOS Shortcut](https://www.icloud.com/shortcuts/dab6b7bfb7054129aee24a4deef3c517)
+**🔗 Download:** [Snatchr iOS Shortcut](https://www.icloud.com/shortcuts/816a21dbfeba4e078397a9d1c48cef4e)
 
 ### ⚙️ Setup Instructions
 
