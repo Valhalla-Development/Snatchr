@@ -414,7 +414,7 @@ pub async fn download_page() -> Html<&'static str> {
                 <!-- URL Input -->
                 <div class="space-y-2">
                     <label for="videoUrl" class="block text-white font-semibold text-sm uppercase tracking-wide">
-                        Video URL (YouTube, Vimeo, TikTok, Twitch, Instagram, Twitter, Facebook)
+                        Video URL
                     </label>
                     <div class="relative">
                         <input 
