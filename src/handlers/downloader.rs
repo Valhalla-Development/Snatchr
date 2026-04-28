@@ -7,6 +7,8 @@ use std::cell::RefCell;
 use std::time::{Duration, Instant};
 use tracing::{error, info};
 
+const MIN_VALID_VIDEO_SIZE_BYTES: u64 = 1024;
+
 /*
  * Initializes the yt-dlp fetcher (multi-platform MediaDownloader via Youtube alias).
  * Installs necessary external libraries (yt-dlp and ffmpeg) asynchronously.
@@ -120,9 +122,10 @@ pub fn download_video(
                 for entry in entries.flatten() {
                     let path = entry.path();
                     if path.is_file() && path.extension().map_or(false, |ext| ext == "mp4") {
-                        // Verify file is not empty/corrupted
+                        // Verify file is not empty/corrupted.
+                        // Tiny files are usually error/anti-bot payloads and should not be reused.
                         if let Ok(metadata) = std::fs::metadata(&path) {
-                            if metadata.len() > 0 {
+                            if metadata.len() >= MIN_VALID_VIDEO_SIZE_BYTES {
                                 let duration = start.elapsed();
                                 info!(
                                     job_id = %job_id,
@@ -133,6 +136,9 @@ pub fn download_video(
                                     "Video found in cache, returning cached file"
                                 );
                                 return Ok(path);
+                            } else {
+                                // Remove poisoned cache entries to force a clean redownload.
+                                let _ = std::fs::remove_file(&path);
                             }
                         }
                     }
