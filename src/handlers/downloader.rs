@@ -1,37 +1,26 @@
 use crate::config::Config;
 use std::path::PathBuf;
-use yt_dlp::Youtube;
+use yt_dlp::Youtube; // alias for MediaDownloader (supports multiple platforms)
 use yt_dlp::fetcher::deps::{Libraries, LibraryInstaller};
-use yt_dlp::fetcher::download_manager::ManagerConfig;
 extern crate sanitize_filename;
 use std::cell::RefCell;
 use std::time::{Duration, Instant};
 use tracing::{error, info};
 
 /*
- * Initializes the yt-dlp fetcher with custom download manager configuration.
- * Sets up concurrency, segment size, retry attempts, and buffer sizes.
- * Installs necessary external libraries (youtube-dl and ffmpeg) asynchronously.
- * Returns a configured YouTube fetcher ready to download videos.
+ * Initializes the yt-dlp fetcher (multi-platform MediaDownloader via Youtube alias).
+ * Installs necessary external libraries (yt-dlp and ffmpeg) asynchronously.
+ * Returns a configured fetcher ready to download videos.
  */
 pub fn init_yt_dlp() -> Result<Youtube, Box<dyn std::error::Error>> {
     let app_config = Config::from_env();
-
-    let config = ManagerConfig {
-        max_concurrent_downloads: app_config.max_concurrent_downloads,
-        segment_size: 1024 * 1024 * 10,    // 10 MB per segment
-        parallel_segments: 8,              // 8 parallel segments per download
-        retry_attempts: 5,                 // 5 retry attempts on failure
-        max_buffer_size: 1024 * 1024 * 20, // 20 MB maximum buffer
-    };
-
     let libraries_dir = PathBuf::from("libs"); // Directory for external libs
     let output_dir = PathBuf::from(&app_config.download_dir); // Directory for downloads
 
     // Create a Tokio runtime to run async installer calls in a blocking context
     let rt = tokio::runtime::Runtime::new()?;
 
-    // Install YouTube and FFMPEG binaries asynchronously
+    // Install yt-dlp and FFMPEG binaries asynchronously
     let (youtube, ffmpeg) = rt.block_on(async {
         let installer = LibraryInstaller::new(libraries_dir.clone());
         let youtube = installer.install_youtube(None).await?;
@@ -40,8 +29,11 @@ pub fn init_yt_dlp() -> Result<Youtube, Box<dyn std::error::Error>> {
     })?;
 
     let libraries = Libraries::new(youtube, ffmpeg);
-    let fetcher = Youtube::with_download_manager_config(libraries, output_dir, config)?;
-
+    let mut fetcher = Youtube::new(libraries, output_dir)?;
+    // Align downloader timeout with app config
+    fetcher.set_timeout(std::time::Duration::from_secs(
+        app_config.timeout_seconds as u64,
+    ));
     Ok(fetcher)
 }
 
@@ -202,16 +194,9 @@ pub fn download_video(
             "Starting download with specified quality and codecs"
         );
 
-        // Start the download with desired quality and codecs
+        // Start the download (best available A/V format)
         let video_path = fetcher
-            .download_video_with_quality(
-                url.clone(),
-                relative_path,
-                config.video_quality,
-                config.video_codec,
-                config.audio_quality,
-                config.audio_codec,
-            )
+            .download_video_from_url(url.clone(), relative_path)
             .await?;
 
         Ok::<_, Box<dyn std::error::Error>>(video_path)
