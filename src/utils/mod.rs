@@ -4,4 +4,4 @@
  * Contains the cleanup utility and YouTube URL utilities.
  */
 pub mod cleanup;
-pub mod youtube;
+// Deprecated: YouTube-only URL helpers replaced by yt-dlp's ExtractorDetector
