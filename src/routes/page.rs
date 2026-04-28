@@ -414,14 +414,14 @@ pub async fn download_page() -> Html<&'static str> {
                 <!-- URL Input -->
                 <div class="space-y-2">
                     <label for="videoUrl" class="block text-white font-semibold text-sm uppercase tracking-wide">
-                        YouTube URL
+                        Video URL (YouTube, Vimeo, TikTok, Twitch, Instagram, Twitter, Facebook)
                     </label>
                     <div class="relative">
                         <input 
                             type="url" 
                             id="videoUrl" 
                             name="videoUrl" 
-                            placeholder="https://www.youtube.com/watch?v=..." 
+                            placeholder="https://example.com/video/..." 
                             required
                             class="w-full px-6 py-4 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent backdrop-blur-sm transition-all duration-300"
                         >
@@ -490,10 +490,24 @@ pub async fn download_page() -> Html<&'static str> {
     </div>
 
     <script>
-        // URL validation function
+        // URL validation function: basic allow-list by hostname; backend performs canonical validation
         function isValidVideoUrl(url) {
-            const youtubePattern = /^https?:\/\/(?:www\.|m\.)?youtube\.com\/(?:watch\?v=|shorts\/)([a-zA-Z0-9_-]{11})|^https?:\/\/youtu\.be\/([a-zA-Z0-9_-]{11})/i;
-            return youtubePattern.test(url);
+            try {
+                const u = new URL(url);
+                const host = u.hostname.toLowerCase();
+                const allowedHosts = [
+                    'youtube.com','www.youtube.com','m.youtube.com','youtu.be',
+                    'vimeo.com','www.vimeo.com',
+                    'twitch.tv','www.twitch.tv','clips.twitch.tv',
+                    'tiktok.com','www.tiktok.com','vm.tiktok.com',
+                    'instagram.com','www.instagram.com',
+                    'twitter.com','www.twitter.com','x.com','www.x.com',
+                    'facebook.com','www.facebook.com','fb.watch'
+                ];
+                return allowedHosts.includes(host);
+            } catch (_) {
+                return false;
+            }
         }
 
         // Track download history
@@ -530,7 +544,7 @@ pub async fn download_page() -> Html<&'static str> {
                             </div>
                             <h3 class="text-xl font-bold">Invalid URL</h3>
                         </div>
-                        <p class="text-white/80">Please enter a valid YouTube URL</p>
+                        <p class="text-white/80">Please enter a supported video URL</p>
                     </div>
                 `;
                 result.classList.remove('hidden');
