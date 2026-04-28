@@ -2502,8 +2502,8 @@ dependencies = [
 
 [[package]]
 name = "yt-dlp"
-version = "2.0.0"
-source = "git+https://github.com/Valhalla-Development/yt-dlp?branch=develop#071101e812dc7f55ef481f5199e3d607b5ab37bd"
+version = "2.0.1"
+source = "git+https://github.com/Valhalla-Development/yt-dlp?branch=develop#f490fc2c04874dd92369cff24791d1bab851f67a"
 dependencies = [
  "cfg-if",
  "chrono",
