@@ -1,18 +1,23 @@
 # Build stage
-FROM rust:1.88-slim AS builder
+FROM rust:1.93-slim AS builder
 
-# Install build dependencies and cargo-chef for better caching
+# git is required for Cargo git dependencies (yt-dlp fork)
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
+    git \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && cargo install cargo-chef
 
 WORKDIR /app
 
 # Step 1: Copy dependency files and create minimal project structure
+# (both lib + bin stubs — Snatchr is a library crate with a binary)
 COPY Cargo.toml Cargo.lock ./
-RUN mkdir src && echo "fn main() {}" > src/main.rs
+RUN mkdir src \
+    && echo "fn main() {}" > src/main.rs \
+    && echo "" > src/lib.rs
 
 # Step 2: Generate dependency recipe
 RUN cargo chef prepare --recipe-path recipe.json
