@@ -243,3 +243,80 @@ pub fn download_video(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ffi::{OsStr, OsString};
+    use std::fs;
+    use uuid::Uuid;
+
+    struct TempDownloadDir(PathBuf);
+
+    impl TempDownloadDir {
+        fn new() -> Self {
+            let path =
+                std::env::temp_dir().join(format!("snatchr-youtube-test-{}", Uuid::new_v4()));
+            fs::create_dir_all(&path).expect("temporary download directory should be created");
+            Self(path)
+        }
+    }
+
+    impl Drop for TempDownloadDir {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    struct EnvVarGuard {
+        key: &'static str,
+        previous: Option<OsString>,
+    }
+
+    impl EnvVarGuard {
+        fn set(key: &'static str, value: impl AsRef<OsStr>) -> Self {
+            let previous = std::env::var_os(key);
+
+            // This ignored test must be run by itself with one test thread.
+            unsafe {
+                std::env::set_var(key, value);
+            }
+
+            Self { key, previous }
+        }
+    }
+
+    impl Drop for EnvVarGuard {
+        fn drop(&mut self) {
+            unsafe {
+                if let Some(previous) = &self.previous {
+                    std::env::set_var(self.key, previous);
+                } else {
+                    std::env::remove_var(self.key);
+                }
+            }
+        }
+    }
+
+    #[test]
+    #[ignore = "downloads a real YouTube video; run manually"]
+    fn downloads_real_youtube_video() {
+        let download_dir = TempDownloadDir::new();
+        let _download_dir = EnvVarGuard::set("DOWNLOAD_DIR", &download_dir.0);
+        let _video_quality = EnvVarGuard::set("VIDEO_QUALITY", "Low");
+        let _video_codec = EnvVarGuard::set("VIDEO_CODEC", "any");
+        let _audio_quality = EnvVarGuard::set("AUDIO_QUALITY", "Low");
+        let _audio_codec = EnvVarGuard::set("AUDIO_CODEC", "any");
+        let url = std::env::var("SNATCHR_TEST_YOUTUBE_URL")
+            .unwrap_or_else(|_| "https://www.youtube.com/watch?v=tCDvOQI3pco".to_string());
+
+        let (path, duration) = download_video(url, "youtube-smoke-test".to_string())
+            .expect("YouTube video should download successfully");
+        let metadata = fs::metadata(&path).expect("downloaded video should exist");
+
+        assert!(path.starts_with(&download_dir.0));
+        assert!(metadata.is_file());
+        assert!(metadata.len() >= MIN_VALID_VIDEO_SIZE_BYTES);
+        assert!(!duration.is_zero());
+    }
+}
