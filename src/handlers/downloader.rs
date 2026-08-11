@@ -8,6 +8,10 @@ use std::time::{Duration, Instant};
 use tracing::{debug, error, info, warn};
 
 const MIN_VALID_VIDEO_SIZE_BYTES: u64 = 1024;
+// Browser-like UA so sites that challenge bare yt-dlp (e.g. TikTok) still work.
+// Forwarded to extractors by our local yt-dlp fork.
+const BROWSER_USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) \
+     AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36";
 
 /*
  * Initializes the multi-platform yt-dlp downloader.
@@ -27,6 +31,7 @@ pub fn init_yt_dlp() -> Result<Downloader, Box<dyn std::error::Error>> {
             .await?
             .with_timeout(Duration::from_secs(app_config.timeout_seconds))
             .with_max_concurrent_downloads(app_config.max_concurrent_downloads)
+            .with_user_agent(BROWSER_USER_AGENT)
             .build()
             .await
     })?;
@@ -456,6 +461,29 @@ mod tests {
 
         let (path, duration) = download_video(url, "youtube-smoke-test".to_string())
             .expect("YouTube video should download successfully");
+        let metadata = fs::metadata(&path).expect("downloaded video should exist");
+
+        assert!(path.starts_with(&download_dir.0));
+        assert!(metadata.is_file());
+        assert!(metadata.len() >= MIN_VALID_VIDEO_SIZE_BYTES);
+        assert!(!duration.is_zero());
+    }
+
+    #[test]
+    #[ignore = "downloads a real TikTok video; run manually"]
+    fn downloads_real_tiktok_video() {
+        let download_dir = TempDownloadDir::new();
+        let _download_dir = EnvVarGuard::set("DOWNLOAD_DIR", &download_dir.0);
+        let _video_quality = EnvVarGuard::set("VIDEO_QUALITY", "Low");
+        let _video_codec = EnvVarGuard::set("VIDEO_CODEC", "any");
+        let _audio_quality = EnvVarGuard::set("AUDIO_QUALITY", "Low");
+        let _audio_codec = EnvVarGuard::set("AUDIO_CODEC", "any");
+        let url = std::env::var("SNATCHR_TEST_TIKTOK_URL").unwrap_or_else(|_| {
+            "https://www.tiktok.com/@rickastleyofficial/video/7593022588272561430".to_string()
+        });
+
+        let (path, duration) = download_video(url, "tiktok-smoke-test".to_string())
+            .expect("TikTok video should download successfully");
         let metadata = fs::metadata(&path).expect("downloaded video should exist");
 
         assert!(path.starts_with(&download_dir.0));
