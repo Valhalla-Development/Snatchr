@@ -181,11 +181,35 @@ fn scrub_incomplete_in_dir(dir: &Path) -> usize {
     removed
 }
 
-// Checks if a directory name is not "cache"
+/// True when a directory looks like one of ours: a published mp4, an access
+/// marker, and/or an in-progress temp download. Skips unrelated folders that
+/// happen to sit under DOWNLOAD_DIR (the old "anything except cache/" rule).
 fn is_video_directory(path: &Path) -> bool {
-    path.file_name()
-        .and_then(|name| name.to_str())
-        .is_some_and(|name| name != "cache")
+    let Ok(entries) = fs::read_dir(path) else {
+        return false;
+    };
+
+    for entry in entries.flatten() {
+        let child = entry.path();
+        if !child.is_file() {
+            continue;
+        }
+        let Some(name) = child.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+
+        if name == ".last_accessed" {
+            return true;
+        }
+        if name.starts_with('.') && name.ends_with(".tmp.mp4") {
+            return true;
+        }
+        // Published cache entry: "Title.mp4" (not a hidden temp)
+        if child.extension().is_some_and(|ext| ext == "mp4") && !name.starts_with('.') {
+            return true;
+        }
+    }
+    false
 }
 
 // Logs the cleanup result with appropriate message
@@ -273,9 +297,32 @@ mod tests {
     }
 
     #[test]
-    fn excludes_cache_directory_from_video_directories() {
-        assert!(!is_video_directory(&PathBuf::from("cache")));
-        assert!(is_video_directory(&PathBuf::from("video-id")));
+    fn recognizes_video_directories_by_contents() {
+        let test_dir = TestDirectory::new();
+
+        let empty = test_dir.0.join("empty-folder");
+        fs::create_dir(&empty).unwrap();
+        assert!(!is_video_directory(&empty));
+
+        let unrelated = test_dir.0.join("notes");
+        fs::create_dir(&unrelated).unwrap();
+        fs::write(unrelated.join("readme.txt"), b"hi").unwrap();
+        assert!(!is_video_directory(&unrelated));
+
+        let with_mp4 = test_dir.0.join("video-id");
+        fs::create_dir(&with_mp4).unwrap();
+        fs::write(with_mp4.join("clip.mp4"), b"video").unwrap();
+        assert!(is_video_directory(&with_mp4));
+
+        let with_marker = test_dir.0.join("accessed-id");
+        fs::create_dir(&with_marker).unwrap();
+        fs::write(with_marker.join(".last_accessed"), b"").unwrap();
+        assert!(is_video_directory(&with_marker));
+
+        let with_temp = test_dir.0.join("partial-id");
+        fs::create_dir(&with_temp).unwrap();
+        fs::write(with_temp.join(".clip.abcd1234.tmp.mp4"), vec![0_u8; 64]).unwrap();
+        assert!(is_video_directory(&with_temp));
     }
 
     #[test]
