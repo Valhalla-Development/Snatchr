@@ -89,9 +89,12 @@ pub fn cleanup_old_files() -> Result<usize, CleanupError> {
 
         if path.is_dir() {
             // Check if this is a video directory (video_id directory)
-            if is_video_directory(&path) && remove_if_old(&path, cutoff_time).is_ok() {
-                info!(path = %path.display(), "Removed expired download");
-                removed_count += 1;
+            if is_video_directory(&path) {
+                removed_count += scrub_incomplete_in_dir(&path);
+                if remove_if_old(&path, cutoff_time).is_ok() {
+                    info!(path = %path.display(), "Removed expired download");
+                    removed_count += 1;
+                }
             }
         } else if path.is_file() {
             // Remove temporary files immediately (don't check age)
@@ -150,6 +153,32 @@ fn is_temporary_file(path: &Path) -> bool {
         || name.starts_with("temp_video")
         || name.ends_with(".tmp")
         || name.ends_with(".temp")
+        // In-progress downloads published atomically as ".Title.<job>.tmp.mp4"
+        || (name.starts_with('.') && name.ends_with(".tmp.mp4"))
+}
+
+/// Removes orphaned in-progress downloads inside a video cache directory.
+fn scrub_incomplete_in_dir(dir: &Path) -> usize {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return 0;
+    };
+
+    let mut removed = 0;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_file() && is_temporary_file(&path) {
+            match fs::remove_file(&path) {
+                Ok(_) => {
+                    info!(path = %path.display(), "Removed incomplete download");
+                    removed += 1;
+                }
+                Err(e) => {
+                    error!(path = %path.display(), error = %e, "Failed to remove incomplete download");
+                }
+            }
+        }
+    }
+    removed
 }
 
 // Checks if a directory name is not "cache"
@@ -231,6 +260,9 @@ mod tests {
         assert!(is_temporary_file(&PathBuf::from("temp_video-1.mp4")));
         assert!(is_temporary_file(&PathBuf::from("partial.tmp")));
         assert!(is_temporary_file(&PathBuf::from("partial.temp")));
+        assert!(is_temporary_file(&PathBuf::from(
+            ".Some_Title.abcd1234.tmp.mp4"
+        )));
         assert!(!is_temporary_file(&PathBuf::from("finished.mp4")));
     }
 
