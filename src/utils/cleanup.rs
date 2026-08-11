@@ -216,3 +216,78 @@ pub async fn start_cleanup_scheduler() {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::UNIX_EPOCH;
+    use uuid::Uuid;
+
+    struct TestDirectory(PathBuf);
+
+    impl TestDirectory {
+        fn new() -> Self {
+            let path = std::env::temp_dir().join(format!("snatchr-test-{}", Uuid::new_v4()));
+            fs::create_dir_all(&path).expect("test directory should be created");
+            Self(path)
+        }
+    }
+
+    impl Drop for TestDirectory {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn recognizes_temporary_download_files() {
+        assert!(is_temporary_file(&PathBuf::from("temp_audio-1.webm")));
+        assert!(is_temporary_file(&PathBuf::from("temp_video-1.mp4")));
+        assert!(is_temporary_file(&PathBuf::from("partial.tmp")));
+        assert!(is_temporary_file(&PathBuf::from("partial.temp")));
+        assert!(!is_temporary_file(&PathBuf::from("finished.mp4")));
+    }
+
+    #[test]
+    fn excludes_cache_directory_from_video_directories() {
+        assert!(!is_video_directory(&PathBuf::from("cache")));
+        assert!(is_video_directory(&PathBuf::from("video-id")));
+    }
+
+    #[test]
+    fn removes_directory_older_than_cutoff() {
+        let test_dir = TestDirectory::new();
+        let video_dir = test_dir.0.join("video-id");
+        fs::create_dir(&video_dir).expect("video directory should be created");
+        fs::write(video_dir.join("video.mp4"), b"video").expect("video file should be written");
+
+        let future_cutoff = SystemTime::now() + Duration::from_secs(60);
+        remove_if_old(&video_dir, future_cutoff).expect("old directory should be removed");
+
+        assert!(!video_dir.exists());
+    }
+
+    #[test]
+    fn keeps_directory_newer_than_cutoff() {
+        let test_dir = TestDirectory::new();
+        let video_dir = test_dir.0.join("video-id");
+        fs::create_dir(&video_dir).expect("video directory should be created");
+
+        let result = remove_if_old(&video_dir, UNIX_EPOCH);
+
+        assert!(result.is_err());
+        assert!(video_dir.exists());
+    }
+
+    #[test]
+    fn cleanup_errors_have_actionable_messages() {
+        assert_eq!(
+            CleanupError::DirectoryNotFound.to_string(),
+            "Download directory not found or could not be created"
+        );
+        assert_eq!(
+            CleanupError::InvalidConfiguration.to_string(),
+            "Invalid cleanup configuration"
+        );
+    }
+}

@@ -124,3 +124,38 @@ pub async fn download_handler(Json(payload): Json<DownloadRequest>) -> Json<Down
         error: None,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn rejects_unsupported_url_without_starting_download() {
+        let Json(response) = download_handler(Json(DownloadRequest {
+            url: "https://example.com/not-a-video".to_string(),
+        }))
+        .await;
+
+        assert!(!response.success);
+        assert!(response.file_url.is_none());
+        assert_eq!(
+            response.error.as_deref(),
+            Some("Unsupported or invalid video URL")
+        );
+    }
+
+    #[test]
+    fn response_omits_empty_optional_fields() {
+        let response = DownloadResponse {
+            success: true,
+            file_url: Some("http://localhost/files/id/video.mp4".to_string()),
+            error: None,
+        };
+
+        let json = serde_json::to_value(response).expect("response should serialize");
+
+        assert_eq!(json["success"], true);
+        assert_eq!(json["file_url"], "http://localhost/files/id/video.mp4");
+        assert!(json.get("error").is_none());
+    }
+}

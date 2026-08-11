@@ -243,3 +243,70 @@ where
         .and_then(|v| v.to_lowercase().parse().ok())
         .unwrap_or(default)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn default_config_has_expected_server_and_runtime_values() {
+        let config = Config::default();
+
+        assert_eq!(config.port, 3000);
+        assert_eq!(config.host, "0.0.0.0");
+        assert_eq!(config.address(), "0.0.0.0:3000");
+        assert_eq!(config.download_dir, "./downloads");
+        assert_eq!(config.cleanup_after_minutes, 10);
+        assert_eq!(config.max_concurrent_downloads, 5);
+        assert_eq!(config.timeout_seconds, 300);
+        assert!(config.enable_web_ui);
+        assert!(!config.use_https);
+    }
+
+    #[test]
+    fn quality_enums_use_pascal_case() {
+        assert!(matches!(
+            VideoQualityEnv::from_str("Best"),
+            Ok(VideoQualityEnv::Best)
+        ));
+        assert!(matches!(
+            AudioQualityEnv::from_str("Medium"),
+            Ok(AudioQualityEnv::Medium)
+        ));
+        assert!(VideoQualityEnv::from_str("best").is_err());
+        assert!(AudioQualityEnv::from_str("medium").is_err());
+    }
+
+    #[test]
+    fn codec_enums_use_lowercase_names() {
+        let video_codec = parse_env_codec_enum(
+            "SNATCHR_TEST_MISSING_VIDEO_CODEC",
+            VideoCodecPreferenceEnv::AV1,
+        );
+        let audio_codec = parse_env_codec_enum(
+            "SNATCHR_TEST_MISSING_AUDIO_CODEC",
+            AudioCodecPreferenceEnv::AAC,
+        );
+
+        assert!(matches!(video_codec, VideoCodecPreferenceEnv::AV1));
+        assert!(matches!(audio_codec, AudioCodecPreferenceEnv::AAC));
+        assert!(matches!(
+            VideoCodecPreferenceEnv::from_str("vp9"),
+            Ok(VideoCodecPreferenceEnv::VP9)
+        ));
+        assert!(matches!(
+            AudioCodecPreferenceEnv::from_str("opus"),
+            Ok(AudioCodecPreferenceEnv::Opus)
+        ));
+    }
+
+    #[test]
+    fn invalid_or_missing_values_fall_back_to_defaults() {
+        let port = parse_env("SNATCHR_TEST_MISSING_PORT", 4242_u16);
+        let quality = parse_env_enum("SNATCHR_TEST_MISSING_QUALITY", VideoQualityEnv::Worst);
+
+        assert_eq!(port, 4242);
+        assert!(matches!(quality, VideoQualityEnv::Worst));
+    }
+}

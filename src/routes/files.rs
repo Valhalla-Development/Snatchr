@@ -64,3 +64,20 @@ pub async fn serve_file(
 
     Ok(response.into_response())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use uuid::Uuid;
+
+    #[tokio::test]
+    async fn returns_not_found_for_missing_file() {
+        let result = serve_file(
+            Path((Uuid::new_v4().to_string(), "missing.mp4".to_string())),
+            Query(HashMap::new()),
+        )
+        .await;
+
+        assert!(matches!(result, Err(StatusCode::NOT_FOUND)));
+    }
+}
