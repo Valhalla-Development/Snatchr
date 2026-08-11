@@ -33,8 +33,17 @@ pub fn init_yt_dlp() -> Result<Downloader, Box<dyn std::error::Error>> {
     Ok(fetcher)
 }
 
+/// True when a file is a finished cache entry (not an in-progress temp download).
+fn is_final_cached_mp4(path: &Path) -> bool {
+    let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+        return false;
+    };
+    // In-progress downloads use hidden names like ".Title.abcd1234.tmp.mp4"
+    path.extension().is_some_and(|ext| ext == "mp4") && !name.starts_with('.')
+}
+
 /// Looks for a reusable mp4 under downloads/{video_id}/.
-/// Removes tiny/poisoned files so the next download can replace them.
+/// Removes tiny/poisoned final files so the next download can replace them.
 fn find_cached_mp4(download_dir: &Path, video_id: &str) -> Option<PathBuf> {
     let cache_dir = download_dir.join(video_id);
     if !cache_dir.is_dir() {
@@ -44,7 +53,7 @@ fn find_cached_mp4(download_dir: &Path, video_id: &str) -> Option<PathBuf> {
     let entries = std::fs::read_dir(&cache_dir).ok()?;
     for entry in entries.flatten() {
         let path = entry.path();
-        if !path.is_file() || !path.extension().is_some_and(|ext| ext == "mp4") {
+        if !path.is_file() || !is_final_cached_mp4(&path) {
             continue;
         }
 
@@ -60,6 +69,44 @@ fn find_cached_mp4(download_dir: &Path, video_id: &str) -> Option<PathBuf> {
         }
     }
     None
+}
+
+/// Drops leftover in-progress downloads in a video cache directory.
+fn scrub_incomplete_downloads(cache_dir: &Path) {
+    let Ok(entries) = std::fs::read_dir(cache_dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        if path.is_file() && name.starts_with('.') && name.ends_with(".tmp.mp4") {
+            let _ = std::fs::remove_file(&path);
+        }
+    }
+}
+
+/// Publishes a completed download by renaming the temp file into place.
+/// Rejects undersized outputs so they never become cache hits.
+fn publish_completed_download(
+    temp_path: &Path,
+    final_path: &Path,
+) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let size = std::fs::metadata(temp_path)?.len();
+    if size < MIN_VALID_VIDEO_SIZE_BYTES {
+        let _ = std::fs::remove_file(temp_path);
+        return Err(format!(
+            "Downloaded file too small ({size} bytes) — refusing to cache"
+        )
+        .into());
+    }
+
+    if final_path.exists() {
+        std::fs::remove_file(final_path)?;
+    }
+    std::fs::rename(temp_path, final_path)?;
+    Ok(final_path.to_path_buf())
 }
 
 /*
@@ -166,6 +213,7 @@ pub fn download_video(
         // Cache miss — download into downloads/{video_id}/
         let cache_dir = download_dir.join(video_id);
         std::fs::create_dir_all(&cache_dir)?;
+        scrub_incomplete_downloads(&cache_dir);
         debug!(job = %job_id, dir = %cache_dir.display(), "Cache directory created");
 
         // Helper function to clean the filename
@@ -194,11 +242,18 @@ pub fn download_video(
         }
 
         // Sanitize filename to avoid illegal characters
-        let relative_path = format!(
-            "{}/{}.mp4",
-            video_id,
-            clean(&sanitize_filename::sanitize(&video.title))
-        );
+        let clean_title = clean(&sanitize_filename::sanitize(&video.title));
+        let clean_title = if clean_title.is_empty() {
+            "video".to_string()
+        } else {
+            clean_title
+        };
+        // Keep a real .mp4 extension so remux/ffmpeg behave, but hide the name
+        // so find_cached_mp4 ignores it until we atomically publish.
+        let job_suffix = job_id.get(..8).unwrap_or("download");
+        let temp_relative = format!("{video_id}/.{clean_title}.{job_suffix}.tmp.mp4");
+        let final_relative = format!("{video_id}/{clean_title}.mp4");
+        let final_path = download_dir.join(&final_relative);
 
         info!(
             job = %job_id,
@@ -209,17 +264,33 @@ pub fn download_video(
             "Downloading"
         );
 
-        // Start the download (best available A/V format)
-        let video_path = fetcher
-            .download(&video, relative_path)
+        // Download to a temp name, then rename into place only if it looks valid.
+        let temp_path = match fetcher
+            .download(&video, &temp_relative)
             .video_quality(config.video_quality)
             .video_codec(config.video_codec.clone())
             .audio_quality(config.audio_quality)
             .audio_codec(config.audio_codec.clone())
             .execute()
-            .await?;
+            .await
+        {
+            Ok(path) => path,
+            Err(e) => {
+                let leftover = download_dir.join(&temp_relative);
+                let _ = std::fs::remove_file(&leftover);
+                return Err(e.into());
+            }
+        };
 
-        Ok::<_, Box<dyn std::error::Error>>(video_path)
+        let published = match publish_completed_download(&temp_path, &final_path) {
+            Ok(path) => path,
+            Err(e) => {
+                let _ = std::fs::remove_file(&temp_path);
+                return Err(e);
+            }
+        };
+
+        Ok::<_, Box<dyn std::error::Error>>(published)
     });
 
     let duration = start.elapsed();
@@ -302,6 +373,52 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn find_cached_mp4_ignores_incomplete_temp_files() {
+        let download_dir = TempDownloadDir::new();
+        let video_id = "abc123";
+        let video_dir = download_dir.0.join(video_id);
+        fs::create_dir_all(&video_dir).unwrap();
+
+        fs::write(
+            video_dir.join(".Title.job12345.tmp.mp4"),
+            vec![0_u8; MIN_VALID_VIDEO_SIZE_BYTES as usize * 10],
+        )
+        .unwrap();
+
+        assert!(find_cached_mp4(&download_dir.0, video_id).is_none());
+
+        let final_path = video_dir.join("Title.mp4");
+        fs::write(&final_path, vec![0_u8; MIN_VALID_VIDEO_SIZE_BYTES as usize]).unwrap();
+        assert_eq!(find_cached_mp4(&download_dir.0, video_id), Some(final_path));
+    }
+
+    #[test]
+    fn publish_rejects_undersized_downloads() {
+        let download_dir = TempDownloadDir::new();
+        let temp = download_dir.0.join(".video.tmp.mp4");
+        let final_path = download_dir.0.join("video.mp4");
+        fs::write(&temp, b"tiny").unwrap();
+
+        let err = publish_completed_download(&temp, &final_path).unwrap_err();
+        assert!(err.to_string().contains("too small"));
+        assert!(!temp.exists());
+        assert!(!final_path.exists());
+    }
+
+    #[test]
+    fn publish_renames_valid_download_into_place() {
+        let download_dir = TempDownloadDir::new();
+        let temp = download_dir.0.join(".video.tmp.mp4");
+        let final_path = download_dir.0.join("video.mp4");
+        fs::write(&temp, vec![0_u8; MIN_VALID_VIDEO_SIZE_BYTES as usize]).unwrap();
+
+        let published = publish_completed_download(&temp, &final_path).unwrap();
+        assert_eq!(published, final_path);
+        assert!(final_path.exists());
+        assert!(!temp.exists());
     }
 
     #[test]
