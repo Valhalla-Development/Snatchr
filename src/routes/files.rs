@@ -31,7 +31,7 @@ pub async fn serve_file(
     }
 
     // Update access marker for smart caching
-    let is_stream = params.get("stream").map_or(false, |v| v == "true");
+    let is_stream = params.get("stream").is_some_and(|v| v == "true");
 
     if !is_stream {
         let access_marker = file_path.parent().unwrap().join(".last_accessed");
@@ -54,7 +54,7 @@ pub async fn serve_file(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     // Default to download unless stream=true is specified
-    if !params.get("stream").map_or(false, |v| v == "true") {
+    if !is_stream {
         response.headers_mut().insert(
             "content-disposition",
             HeaderValue::from_str(&format!("attachment; filename=\"{}\"", filename))

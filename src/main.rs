@@ -7,8 +7,6 @@
  *
  * Finally, it calls and awaits the main server run function from the `snatchr` module.
  */
-use tracing_subscriber;
-
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt()

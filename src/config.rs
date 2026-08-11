@@ -52,7 +52,7 @@ pub enum AudioQualityEnv {
 #[strum(serialize_all = "lowercase")]
 pub enum AudioCodecPreferenceEnv {
     Opus,
-    AAC,
+    Aac,
     MP3,
     Any,
 }
@@ -100,7 +100,7 @@ impl From<AudioCodecPreferenceEnv> for AudioCodecPreference {
     fn from(env: AudioCodecPreferenceEnv) -> Self {
         match env {
             AudioCodecPreferenceEnv::Opus => AudioCodecPreference::Opus,
-            AudioCodecPreferenceEnv::AAC => AudioCodecPreference::AAC,
+            AudioCodecPreferenceEnv::Aac => AudioCodecPreference::AAC,
             AudioCodecPreferenceEnv::MP3 => AudioCodecPreference::MP3,
             AudioCodecPreferenceEnv::Any => AudioCodecPreference::Any,
         }
@@ -286,11 +286,11 @@ mod tests {
         );
         let audio_codec = parse_env_codec_enum(
             "SNATCHR_TEST_MISSING_AUDIO_CODEC",
-            AudioCodecPreferenceEnv::AAC,
+            AudioCodecPreferenceEnv::Aac,
         );
 
         assert!(matches!(video_codec, VideoCodecPreferenceEnv::AV1));
-        assert!(matches!(audio_codec, AudioCodecPreferenceEnv::AAC));
+        assert!(matches!(audio_codec, AudioCodecPreferenceEnv::Aac));
         assert!(matches!(
             VideoCodecPreferenceEnv::from_str("vp9"),
             Ok(VideoCodecPreferenceEnv::VP9)

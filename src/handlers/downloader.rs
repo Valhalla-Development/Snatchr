@@ -1,7 +1,7 @@
 use crate::config::Config;
 use std::path::PathBuf;
-use yt_dlp::Youtube; // alias for MediaDownloader (supports multiple platforms)
-use yt_dlp::fetcher::deps::{Libraries, LibraryInstaller};
+use yt_dlp::Downloader;
+use yt_dlp::client::deps::{Libraries, LibraryInstaller};
 extern crate sanitize_filename;
 use std::cell::RefCell;
 use std::time::{Duration, Instant};
@@ -14,7 +14,7 @@ const MIN_VALID_VIDEO_SIZE_BYTES: u64 = 1024;
  * Installs necessary external libraries (yt-dlp and ffmpeg) asynchronously.
  * Returns a configured fetcher ready to download videos.
  */
-pub fn init_yt_dlp() -> Result<Youtube, Box<dyn std::error::Error>> {
+pub fn init_yt_dlp() -> Result<Downloader, Box<dyn std::error::Error>> {
     let app_config = Config::from_env();
     let libraries_dir = PathBuf::from("libs"); // Directory for external libs
     let output_dir = PathBuf::from(&app_config.download_dir); // Directory for downloads
@@ -31,11 +31,12 @@ pub fn init_yt_dlp() -> Result<Youtube, Box<dyn std::error::Error>> {
     })?;
 
     let libraries = Libraries::new(youtube, ffmpeg);
-    let mut fetcher = Youtube::new(libraries, output_dir)?;
-    // Align downloader timeout with app config
-    fetcher.set_timeout(std::time::Duration::from_secs(
-        app_config.timeout_seconds as u64,
-    ));
+    let fetcher = rt.block_on(
+        Downloader::builder(libraries, output_dir)
+            .with_timeout(Duration::from_secs(app_config.timeout_seconds))
+            .with_max_concurrent_downloads(app_config.max_concurrent_downloads)
+            .build(),
+    )?;
     Ok(fetcher)
 }
 
@@ -121,7 +122,7 @@ pub fn download_video(
             if let Ok(entries) = std::fs::read_dir(&cache_dir) {
                 for entry in entries.flatten() {
                     let path = entry.path();
-                    if path.is_file() && path.extension().map_or(false, |ext| ext == "mp4") {
+                    if path.is_file() && path.extension().is_some_and(|ext| ext == "mp4") {
                         // Verify file is not empty/corrupted.
                         // Tiny files are usually error/anti-bot payloads and should not be reused.
                         if let Ok(metadata) = std::fs::metadata(&path) {
@@ -202,7 +203,12 @@ pub fn download_video(
 
         // Start the download (best available A/V format)
         let video_path = fetcher
-            .download_video_from_url(url.clone(), relative_path)
+            .download(&video, relative_path)
+            .video_quality(config.video_quality)
+            .video_codec(config.video_codec.clone())
+            .audio_quality(config.audio_quality)
+            .audio_codec(config.audio_codec.clone())
+            .execute()
             .await?;
 
         Ok::<_, Box<dyn std::error::Error>>(video_path)

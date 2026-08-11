@@ -1,6 +1,6 @@
 use crate::config::Config;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 use tokio::time::interval;
 use tracing::{error, info, warn};
@@ -66,7 +66,7 @@ pub fn cleanup_old_files() -> Result<usize, CleanupError> {
 
     // Calculate cutoff time (files older than this will be removed)
     let now = SystemTime::now();
-    let cutoff_duration = Duration::from_secs(config.cleanup_after_minutes as u64 * 60);
+    let cutoff_duration = Duration::from_secs(config.cleanup_after_minutes * 60);
     let cutoff_time = now
         .checked_sub(cutoff_duration)
         .ok_or(CleanupError::InvalidConfiguration)?;
@@ -89,11 +89,9 @@ pub fn cleanup_old_files() -> Result<usize, CleanupError> {
 
         if path.is_dir() {
             // Check if this is a video directory (video_id directory)
-            if is_video_directory(&path) {
-                if let Ok(()) = remove_if_old(&path, cutoff_time) {
-                    info!("Removed old download directory: {}", path.display());
-                    removed_count += 1;
-                }
+            if is_video_directory(&path) && remove_if_old(&path, cutoff_time).is_ok() {
+                info!("Removed old download directory: {}", path.display());
+                removed_count += 1;
             }
         } else if path.is_file() {
             // Remove temporary files immediately (don't check age)
@@ -116,7 +114,7 @@ pub fn cleanup_old_files() -> Result<usize, CleanupError> {
 }
 
 // Removes a file or directory if it's older than the cutoff time
-fn remove_if_old(path: &PathBuf, cutoff_time: SystemTime) -> Result<(), CleanupError> {
+fn remove_if_old(path: &Path, cutoff_time: SystemTime) -> Result<(), CleanupError> {
     // For video directories, check the .last_accessed marker file
     let access_marker = path.join(".last_accessed");
     let access_time = if access_marker.exists() {
@@ -136,34 +134,29 @@ fn remove_if_old(path: &PathBuf, cutoff_time: SystemTime) -> Result<(), CleanupE
         }
         Ok(())
     } else {
-        Err(CleanupError::IoError(std::io::Error::new(
-            std::io::ErrorKind::Other,
+        Err(CleanupError::IoError(std::io::Error::other(
             "File is not old enough for removal",
         )))
     }
 }
 
 // Checks if a file is a temporary file that should be removed immediately
-fn is_temporary_file(path: &PathBuf) -> bool {
-    if let Some(file_name) = path.file_name() {
-        if let Some(name_str) = file_name.to_str() {
-            return name_str.starts_with("temp_audio")
-                || name_str.starts_with("temp_video")
-                || name_str.ends_with(".tmp")
-                || name_str.ends_with(".temp");
-        }
-    }
-    false
+fn is_temporary_file(path: &Path) -> bool {
+    let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+        return false;
+    };
+
+    name.starts_with("temp_audio")
+        || name.starts_with("temp_video")
+        || name.ends_with(".tmp")
+        || name.ends_with(".temp")
 }
 
 // Checks if a directory name is not "cache"
-fn is_video_directory(path: &PathBuf) -> bool {
-    if let Some(name) = path.file_name() {
-        if let Some(name_str) = name.to_str() {
-            return name_str != "cache";
-        }
-    }
-    false
+fn is_video_directory(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name != "cache")
 }
 
 // Logs the cleanup result with appropriate message
@@ -189,7 +182,7 @@ pub async fn start_cleanup_scheduler() {
     }
 
     // Run cleanup every quarter of the expiry time (more frequent checks)
-    let cleanup_interval = Duration::from_secs(config.cleanup_after_minutes as u64 * 60);
+    let cleanup_interval = Duration::from_secs(config.cleanup_after_minutes * 60);
     let mut interval_timer = interval(cleanup_interval);
 
     info!(

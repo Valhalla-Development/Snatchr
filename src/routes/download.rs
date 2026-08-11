@@ -21,7 +21,6 @@ use uuid::Uuid;
 
 use crate::config::Config;
 use crate::handlers::downloader::download_video;
-use yt_dlp::ExtractorDetector;
 
 #[derive(Deserialize)]
 pub struct DownloadRequest {
@@ -37,15 +36,22 @@ pub struct DownloadResponse {
     error: Option<String>,
 }
 
+fn is_valid_video_url(url: &str) -> bool {
+    let Ok(uri) = url.parse::<axum::http::Uri>() else {
+        return false;
+    };
+
+    matches!(uri.scheme_str(), Some("http" | "https")) && uri.host().is_some()
+}
+
 #[axum::debug_handler]
 pub async fn download_handler(Json(payload): Json<DownloadRequest>) -> Json<DownloadResponse> {
     let job_id = Uuid::new_v4().to_string();
     let url = payload.url.clone();
     let config = Config::from_env();
 
-    // Validate URL support using yt-dlp's multi-extractor detector
-    let detector = ExtractorDetector::new();
-    if !detector.is_supported(&url) {
+    // Validate the URL shape locally. yt-dlp performs definitive extractor validation.
+    if !is_valid_video_url(&url) {
         return Json(DownloadResponse {
             success: false,
             file_url: None,
@@ -56,7 +62,7 @@ pub async fn download_handler(Json(payload): Json<DownloadRequest>) -> Json<Down
     // Run the download_video function on a blocking thread since it performs sync operations
     let job_id_clone = job_id.clone();
     let result = timeout(
-        Duration::from_secs(config.timeout_seconds as u64),
+        Duration::from_secs(config.timeout_seconds),
         tokio::task::spawn_blocking(move || download_video(url, job_id).map_err(|e| e.to_string())),
     )
     .await;
@@ -130,9 +136,9 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn rejects_unsupported_url_without_starting_download() {
+    async fn rejects_invalid_url_without_starting_download() {
         let Json(response) = download_handler(Json(DownloadRequest {
-            url: "https://example.com/not-a-video".to_string(),
+            url: "not a URL".to_string(),
         }))
         .await;
 
