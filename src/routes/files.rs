@@ -30,18 +30,16 @@ pub async fn serve_file(
         return Err(StatusCode::NOT_FOUND);
     }
 
-    // Update access marker for smart caching
-    let is_stream = params.get("stream").is_some_and(|v| v == "true");
-
-    if !is_stream {
-        let access_marker = file_path.parent().unwrap().join(".last_accessed");
-
-        if let Err(e) = std::fs::write(&access_marker, "") {
-            warn!(video = %video_id, error = %e, "Failed to update access marker");
-        } else {
-            debug!(video = %video_id, "Access marker updated");
-        }
+    // Update access marker for smart caching (streams and downloads both count
+    // as use — otherwise the web UI preview would never keep a file warm).
+    let access_marker = file_path.parent().unwrap().join(".last_accessed");
+    if let Err(e) = std::fs::write(&access_marker, "") {
+        warn!(video = %video_id, error = %e, "Failed to update access marker");
+    } else {
+        debug!(video = %video_id, "Access marker updated");
     }
+
+    let is_stream = params.get("stream").is_some_and(|v| v == "true");
 
     // Use tower-http's ServeFile to handle range requests automatically
     let request = axum::http::Request::builder()
