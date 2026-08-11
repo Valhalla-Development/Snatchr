@@ -1329,8 +1329,7 @@ checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
 [[package]]
 name = "media-seek"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bbe0e43b318d814c09360b4c525ef4caa324f079be72936efc73b8cf216ec2e3"
+source = "git+https://github.com/Valhalla-Development/yt-dlp.git?tag=v2.8.3#da20af360e584cdb60fb81dccd6a5b118553f714"
 dependencies = [
  "futures-util",
  "thiserror",
@@ -3026,9 +3025,8 @@ dependencies = [
 
 [[package]]
 name = "yt-dlp"
-version = "2.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e757dae6d2af747e2401510c73129ebc212f9cb6dd82667f114317b4aa22e940"
+version = "2.8.3"
+source = "git+https://github.com/Valhalla-Development/yt-dlp.git?tag=v2.8.3#da20af360e584cdb60fb81dccd6a5b118553f714"
 dependencies = [
  "async-trait",
  "cfg-if",
