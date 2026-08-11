@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use tower::util::ServiceExt;
 use tower_http::services::ServeFile;
-use tracing::{info, warn};
+use tracing::{debug, warn};
 
 use crate::config::Config;
 
@@ -26,7 +26,7 @@ pub async fn serve_file(
 
     // Check if file exists and is actually a file
     if !file_path.exists() || !file_path.is_file() {
-        warn!("File not found: {}", file_path.display());
+        warn!(path = %file_path.display(), "File not found");
         return Err(StatusCode::NOT_FOUND);
     }
 
@@ -37,9 +37,9 @@ pub async fn serve_file(
         let access_marker = file_path.parent().unwrap().join(".last_accessed");
 
         if let Err(e) = std::fs::write(&access_marker, "") {
-            warn!("Failed to update access marker for {}: {}", video_id, e);
+            warn!(video = %video_id, error = %e, "Failed to update access marker");
         } else {
-            info!("Successfully updated access marker for video {}", video_id);
+            debug!(video = %video_id, "Access marker updated");
         }
     }
 

@@ -16,6 +16,9 @@ use routes::page::download_page;
 mod handlers;
 mod utils;
 use utils::cleanup::start_cleanup_scheduler;
+use utils::logger;
+
+pub use utils::logger::init as init_logging;
 
 /*
  * Starts the Axum web server asynchronously.
@@ -25,61 +28,19 @@ pub async fn run_server() {
     // Load configuration from environment variables
     let config = Config::from_env();
 
-    // Build the application router with routes
+    // Build the application router with routes and request logging
     let app = Router::new()
         .route("/", get(download_page)) // GET / -> download_page (HTML interface)
         .route("/health", get(health_check)) // GET /health -> health_check
         .route("/download", post(download_handler)) // POST /download -> download_handler
-        .route("/files/{video_id}/{filename}", get(serve_file)); // GET /files/:video_id/:filename -> serve_file
+        .route("/files/{video_id}/{filename}", get(serve_file)) // GET /files/:video_id/:filename -> serve_file
+        .layer(axum::middleware::from_fn(logger::log_requests));
 
     // Bind TCP listener to the configured address
     let listener = TcpListener::bind(&config.address()).await.unwrap();
 
-    // Print tree-style startup banner
-    println!();
-    println!("🚀 SNATCHR v{}", env!("CARGO_PKG_VERSION"));
-    println!("├── 📍 Server: http://{}", config.address());
-    println!("├── ⚙️  Configuration:");
-
-    // Log configuration values from the loaded config
-    println!("│   ├── PORT = {}", config.port);
-    println!("│   ├── HOST = {}", config.host);
-    println!("│   ├── EXTERNAL_URL = {}", config.external_url);
-    println!("│   ├── USE_HTTPS = {}", config.use_https);
-    println!("│   ├── ENABLE_WEB_UI = {}", config.enable_web_ui);
-    println!("│   ├── DOWNLOAD_DIR = {}", config.download_dir);
-    println!(
-        "│   ├── CLEANUP_AFTER_MINUTES = {}",
-        config.cleanup_after_minutes
-    );
-    println!(
-        "│   ├── MAX_CONCURRENT_DOWNLOADS = {}",
-        config.max_concurrent_downloads
-    );
-    println!("│   ├── TIMEOUT_SECONDS = {}", config.timeout_seconds);
-    println!("│   ├── VIDEO_QUALITY = {:?}", config.video_quality);
-    println!("│   ├── VIDEO_CODEC = {:?}", config.video_codec);
-    println!("│   ├── AUDIO_QUALITY = {:?}", config.audio_quality);
-    println!("│   └── AUDIO_CODEC = {:?}", config.audio_codec);
-
-    println!("├── 📋 Status:");
-
-    // Check if we're in Docker via environment variable
-    let in_docker = std::env::var("DOCKER_ENV").is_ok();
-
-    if in_docker {
-        println!("│   └── 🐳 Running in Docker container");
-    } else if std::fs::read_to_string(".env").is_err() {
-        println!(
-            "│   └── ⚠️  No .env file found, using defaults - create one or copy .env.example"
-        );
-    } else {
-        println!("│   └── ✅ Configuration loaded from .env");
-    }
-
-    println!("└── 🚀 Ready!");
-
-    println!();
+    // Print styled startup banner with the resolved configuration
+    logger::print_banner(&config);
 
     // Start cleanup scheduler in background
     tokio::spawn(start_cleanup_scheduler());

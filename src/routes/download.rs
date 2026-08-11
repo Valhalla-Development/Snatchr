@@ -72,7 +72,7 @@ pub async fn download_handler(Json(payload): Json<DownloadRequest>) -> Json<Down
             Ok(download_result) => match download_result {
                 Ok(result) => result,
                 Err(e) => {
-                    error!(job_id = %job_id_clone, error = %e, "Download error occurred");
+                    // The downloader already error-logged the failure with full context
                     return Json(DownloadResponse {
                         success: false,
                         file_url: None,
@@ -81,7 +81,7 @@ pub async fn download_handler(Json(payload): Json<DownloadRequest>) -> Json<Down
                 }
             },
             Err(e) => {
-                error!(job_id = %job_id_clone, error = %e, "Task join error occurred");
+                error!(job = %job_id_clone, error = %e, "Worker task panicked");
                 return Json(DownloadResponse {
                     success: false,
                     file_url: None,
@@ -90,7 +90,7 @@ pub async fn download_handler(Json(payload): Json<DownloadRequest>) -> Json<Down
             }
         },
         Err(_) => {
-            error!(job_id = %job_id_clone, "Download timeout occurred");
+            error!(job = %job_id_clone, timeout_s = config.timeout_seconds, "Download timed out");
             return Json(DownloadResponse {
                 success: false,
                 file_url: None,

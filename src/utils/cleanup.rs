@@ -3,7 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 use tokio::time::interval;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 /*
  * Cleanup utility for removing old downloaded files.
@@ -80,7 +80,7 @@ pub fn cleanup_old_files() -> Result<usize, CleanupError> {
         let entry = match entry {
             Ok(entry) => entry,
             Err(e) => {
-                warn!("Failed to read directory entry: {}", e);
+                warn!(error = %e, "Unreadable directory entry, skipping");
                 continue;
             }
         };
@@ -90,7 +90,7 @@ pub fn cleanup_old_files() -> Result<usize, CleanupError> {
         if path.is_dir() {
             // Check if this is a video directory (video_id directory)
             if is_video_directory(&path) && remove_if_old(&path, cutoff_time).is_ok() {
-                info!("Removed old download directory: {}", path.display());
+                info!(path = %path.display(), "Removed expired download");
                 removed_count += 1;
             }
         } else if path.is_file() {
@@ -98,11 +98,11 @@ pub fn cleanup_old_files() -> Result<usize, CleanupError> {
             if is_temporary_file(&path) {
                 match fs::remove_file(&path) {
                     Ok(_) => {
-                        info!("Removed temporary file: {}", path.display());
+                        info!(path = %path.display(), "Removed temp file");
                         removed_count += 1;
                     }
                     Err(e) => {
-                        error!("Failed to remove temporary file {}: {}", path.display(), e);
+                        error!(path = %path.display(), error = %e, "Failed to remove temp file");
                     }
                 }
             }
@@ -162,12 +162,9 @@ fn is_video_directory(path: &Path) -> bool {
 // Logs the cleanup result with appropriate message
 fn log_cleanup_result(removed_count: usize) {
     if removed_count > 0 {
-        info!(
-            "Cleanup completed: removed {} old files/directories",
-            removed_count
-        );
+        info!(removed = removed_count, "Cleanup pass finished");
     } else {
-        info!("Cleanup completed: no old files found");
+        debug!("Cleanup pass finished, nothing to remove");
     }
 }
 
@@ -177,7 +174,7 @@ pub async fn start_cleanup_scheduler() {
 
     // Validate configuration
     if config.cleanup_after_minutes == 0 {
-        error!("Invalid cleanup configuration: cleanup_after_minutes cannot be 0");
+        error!("cleanup_after_minutes cannot be 0, scheduler disabled");
         return;
     }
 
@@ -185,15 +182,11 @@ pub async fn start_cleanup_scheduler() {
     let cleanup_interval = Duration::from_secs(config.cleanup_after_minutes * 60);
     let mut interval_timer = interval(cleanup_interval);
 
-    info!(
-        "Starting cleanup scheduler with interval: {:?}",
-        cleanup_interval
-    );
+    info!(every_min = config.cleanup_after_minutes, "Cleanup scheduler started");
 
     // Run initial cleanup
-    info!("Running initial cleanup check...");
     if let Err(e) = cleanup_old_files() {
-        error!("Initial cleanup failed: {}", e);
+        error!(error = %e, "Initial cleanup failed");
     }
 
     // Wait for first interval, then start the loop
@@ -202,10 +195,10 @@ pub async fn start_cleanup_scheduler() {
     // Main cleanup loop
     loop {
         interval_timer.tick().await;
-        info!("Running scheduled cleanup...");
+        debug!("Running scheduled cleanup");
 
         if let Err(e) = cleanup_old_files() {
-            error!("Cleanup task failed: {}", e);
+            error!(error = %e, "Scheduled cleanup failed");
         }
     }
 }

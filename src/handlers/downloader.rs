@@ -4,7 +4,7 @@ use yt_dlp::Downloader;
 extern crate sanitize_filename;
 use std::cell::RefCell;
 use std::time::{Duration, Instant};
-use tracing::{error, info};
+use tracing::{debug, error, info, warn};
 
 const MIN_VALID_VIDEO_SIZE_BYTES: u64 = 1024;
 
@@ -45,12 +45,12 @@ pub fn download_video(
     let start = Instant::now();
     let config = Config::from_env();
 
-    info!(job_id = %job_id, url = %url, "Starting download job");
+    info!(job = %job_id, url = %url, "Job started");
 
     // Check if download directory exists
     let download_dir = PathBuf::from(&config.download_dir);
     if !download_dir.exists() {
-        error!(job_id = %job_id, url = %url, download_dir = %download_dir.display(), "Download directory does not exist");
+        error!(job = %job_id, dir = %download_dir.display(), "Download directory missing");
         return Err(format!(
             "Download directory does not exist: {}. Please create the directory or configure the DOWNLOAD_DIR environment variable.",
             download_dir.display()
@@ -65,28 +65,28 @@ pub fn download_video(
             if e.to_string().contains("invalid Zip archive")
                 || e.to_string().contains("Could not find EOCD") =>
         {
-            error!(job_id = %job_id, url = %url, error = %e, "Detected corrupted yt-dlp libraries, cleaning up...");
+            warn!(job = %job_id, error = %e, "Corrupted yt-dlp libraries detected — reinstalling");
 
             // Remove corrupted libs directory
             let libs_dir = PathBuf::from("libs");
             if libs_dir.exists() {
                 std::fs::remove_dir_all(&libs_dir).unwrap_or_else(|e| {
-                    error!("Failed to remove corrupted libs directory: {}", e);
+                    error!(error = %e, "Failed to remove corrupted libs directory");
                 });
-                info!("Removed corrupted libs directory, retrying initialization...");
+                info!("Removed corrupted libs, retrying initialization");
             }
 
             // Retry initialization
             match init_yt_dlp() {
                 Ok(f) => f,
                 Err(retry_error) => {
-                    error!(job_id = %job_id, url = %url, error = %retry_error, "Failed to initialize yt-dlp after cleanup");
+                    error!(job = %job_id, error = %retry_error, "yt-dlp init failed after cleanup");
                     return Err(retry_error);
                 }
             }
         }
         Err(e) => {
-            error!(job_id = %job_id, url = %url, error = %e, "Failed to initialize yt-dlp");
+            error!(job = %job_id, error = %e, "yt-dlp init failed");
             return Err(e);
         }
     };
@@ -98,10 +98,10 @@ pub fn download_video(
     let cached_video_id = RefCell::new(Option::<String>::None);
 
     let result = rt.block_on(async {
-        info!(job_id = %job_id, url = %url, "Fetching video info");
+        info!(job = %job_id, "Fetching metadata");
         let video = fetcher.fetch_video_infos(url.clone()).await?;
 
-        info!(job_id = %job_id, url = %url, video_title = %video.title, "Video info fetched");
+        info!(job = %job_id, title = %video.title, "Metadata fetched");
 
         // Use video ID for caching
         let video_id = &video.id;
@@ -121,12 +121,11 @@ pub fn download_video(
                             if metadata.len() >= MIN_VALID_VIDEO_SIZE_BYTES {
                                 let duration = start.elapsed();
                                 info!(
-                                    job_id = %job_id,
-                                    url = %url,
-                                    video_id = %video_id,
+                                    job = %job_id,
+                                    video = %video_id,
                                     path = %path.display(),
-                                    duration = format_args!("{:.2}s", duration.as_secs_f64()),
-                                    "Video found in cache, returning cached file"
+                                    took = format_args!("{:.2}s", duration.as_secs_f64()),
+                                    "Cache hit, serving existing file"
                                 );
                                 return Ok(path);
                             } else {
@@ -141,13 +140,7 @@ pub fn download_video(
 
         // Cache miss or invalid cache - proceed with download
         std::fs::create_dir_all(&cache_dir)?;
-        info!(
-            job_id = %job_id,
-            url = %url,
-            video_id = %video_id,
-            path = %cache_dir.display(),
-            "Created cache directory for video ID"
-        );
+        debug!(job = %job_id, dir = %cache_dir.display(), "Cache directory created");
 
         // Helper function to clean the filename
         fn clean(filename: &str) -> String {
@@ -182,15 +175,12 @@ pub fn download_video(
         );
 
         info!(
-            job_id = %job_id,
-            url = %url,
-            video_id = %video_id,
-            video_title = %video.title,
+            job = %job_id,
+            video = %video_id,
             quality = ?config.video_quality,
-            video_codec = ?config.video_codec,
-            audio_quality = ?config.audio_quality,
-            audio_codec = ?config.audio_codec,
-            "Starting download with specified quality and codecs"
+            vcodec = ?config.video_codec,
+            acodec = ?config.audio_codec,
+            "Downloading"
         );
 
         // Start the download (best available A/V format)
@@ -214,21 +204,19 @@ pub fn download_video(
             let video_id_borrowed = cached_video_id.borrow();
             let video_id_log = video_id_borrowed.as_deref().unwrap_or("unknown");
             info!(
-                job_id = %job_id,
-                url = %url,
-                video_id = %video_id_log,
+                job = %job_id,
+                video = %video_id_log,
                 path = %video_path.display(),
-                duration = format_args!("{:.2}s", duration.as_secs_f64()),
-                "Download completed successfully"
+                took = format_args!("{:.2}s", duration.as_secs_f64()),
+                "Download complete"
             );
             Ok((video_path, duration))
         }
         Err(e) => {
             error!(
-                job_id = %job_id,
-                url = %url,
+                job = %job_id,
                 error = %e,
-                duration = format_args!("{:.2}s", duration.as_secs_f64()),
+                took = format_args!("{:.2}s", duration.as_secs_f64()),
                 "Download failed"
             );
             Err(e)
