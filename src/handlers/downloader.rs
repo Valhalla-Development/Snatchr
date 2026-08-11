@@ -1,7 +1,6 @@
 use crate::config::Config;
 use std::path::PathBuf;
 use yt_dlp::Downloader;
-use yt_dlp::client::deps::{Libraries, LibraryInstaller};
 extern crate sanitize_filename;
 use std::cell::RefCell;
 use std::time::{Duration, Instant};
@@ -10,8 +9,8 @@ use tracing::{error, info};
 const MIN_VALID_VIDEO_SIZE_BYTES: u64 = 1024;
 
 /*
- * Initializes the yt-dlp fetcher (multi-platform MediaDownloader via Youtube alias).
- * Installs necessary external libraries (yt-dlp and ffmpeg) asynchronously.
+ * Initializes the multi-platform yt-dlp downloader.
+ * Reuses existing yt-dlp and ffmpeg binaries, installing only missing binaries.
  * Returns a configured fetcher ready to download videos.
  */
 pub fn init_yt_dlp() -> Result<Downloader, Box<dyn std::error::Error>> {
@@ -19,24 +18,17 @@ pub fn init_yt_dlp() -> Result<Downloader, Box<dyn std::error::Error>> {
     let libraries_dir = PathBuf::from("libs"); // Directory for external libs
     let output_dir = PathBuf::from(&app_config.download_dir); // Directory for downloads
 
-    // Create a Tokio runtime to run async installer calls in a blocking context
+    // Create a Tokio runtime to initialize the async downloader in a blocking context
     let rt = tokio::runtime::Runtime::new()?;
 
-    // Install yt-dlp and FFMPEG binaries asynchronously
-    let (youtube, ffmpeg) = rt.block_on(async {
-        let installer = LibraryInstaller::new(libraries_dir.clone());
-        let youtube = installer.install_youtube(None).await?;
-        let ffmpeg = installer.install_ffmpeg(None).await?;
-        Ok::<_, Box<dyn std::error::Error>>((youtube, ffmpeg))
-    })?;
-
-    let libraries = Libraries::new(youtube, ffmpeg);
-    let fetcher = rt.block_on(
-        Downloader::builder(libraries, output_dir)
+    let fetcher = rt.block_on(async {
+        Downloader::with_new_binaries(libraries_dir, output_dir)
+            .await?
             .with_timeout(Duration::from_secs(app_config.timeout_seconds))
             .with_max_concurrent_downloads(app_config.max_concurrent_downloads)
-            .build(),
-    )?;
+            .build()
+            .await
+    })?;
     Ok(fetcher)
 }
 
