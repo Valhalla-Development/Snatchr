@@ -1,8 +1,8 @@
 /*
  * Module declaration for the utils.
  *
- * Contains the cleanup utility and console logging (formatter, banner, request log).
+ * Contains cleanup, console logging, and URL→cache-id helpers.
  */
 pub mod cleanup;
 pub mod logger;
-// Deprecated: YouTube-only URL helpers replaced by yt-dlp's ExtractorDetector
+pub mod video_id;
