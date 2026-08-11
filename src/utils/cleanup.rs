@@ -207,11 +207,17 @@ pub async fn start_cleanup_scheduler() {
         return;
     }
 
-    // Run cleanup every quarter of the expiry time (more frequent checks)
-    let cleanup_interval = Duration::from_secs(config.cleanup_after_minutes * 60);
+    // Check more often than the expiry window so files don't linger up to
+    // another full TTL after they become eligible. Floor at 1 minute.
+    let check_every_minutes = (config.cleanup_after_minutes / 4).max(1);
+    let cleanup_interval = Duration::from_secs(check_every_minutes * 60);
     let mut interval_timer = interval(cleanup_interval);
 
-    info!(every_min = config.cleanup_after_minutes, "Cleanup scheduler started");
+    info!(
+        expire_after_min = config.cleanup_after_minutes,
+        check_every_min = check_every_minutes,
+        "Cleanup scheduler started"
+    );
 
     // Run initial cleanup
     if let Err(e) = cleanup_old_files() {

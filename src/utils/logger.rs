@@ -241,7 +241,7 @@ pub fn print_banner(config: &Config) {
             config.download_dir,
             paint(
                 GRAY,
-                &format!("· cleaned every {} min", config.cleanup_after_minutes)
+                &format!("· kept for {} min", config.cleanup_after_minutes)
             ),
         ),
     );
