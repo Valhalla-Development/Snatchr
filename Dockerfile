@@ -1,5 +1,6 @@
-# Build stage
-FROM rust:1.93-slim AS builder
+# Build stage — pin to bookworm so glibc matches the runtime image.
+# (rust:*-slim defaults to trixie/glibc 2.38+, which breaks on bookworm.)
+FROM rust:1.93-slim-bookworm AS builder
 
 # git is required for Cargo git dependencies (yt-dlp fork)
 RUN apt-get update && apt-get install -y \
