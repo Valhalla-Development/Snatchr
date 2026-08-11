@@ -211,15 +211,23 @@ pub async fn download_page() -> Html<&'static str> {
 
         /* =========================== Layout ============================= */
         .shell {
+            position: relative;
             width: 100%; max-width: 760px;
             margin: 0 auto;
-            padding: 28px 20px 48px;
-            display: flex; flex-direction: column;
+            padding: 28px 20px;
             min-height: 100vh;
+            display: grid;
+            align-items: center;
         }
         .topbar {
+            position: absolute;
+            top: 28px; left: 20px; right: 20px;
+            z-index: 2;
             display: flex; align-items: center; justify-content: space-between;
             animation: fadeDown 0.5s ease both;
+        }
+        .stage {
+            width: 100%;
         }
         @keyframes fadeDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
         .brand { display: flex; align-items: center; gap: 12px; }
@@ -247,7 +255,7 @@ pub async fn download_page() -> Html<&'static str> {
         .status-pill[data-state="offline"] .status-dot { background: var(--danger); box-shadow: 0 0 9px var(--danger); animation: none; }
 
         /* ============================ Hero ============================== */
-        .hero { text-align: center; margin: 54px 0 34px; animation: rise 0.6s 0.08s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+        .hero { text-align: center; margin: 28px 0 28px; animation: rise 0.6s 0.08s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
         @keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
         .hero h1 {
             font-family: 'Space Grotesk', sans-serif;
@@ -659,7 +667,7 @@ pub async fn download_page() -> Html<&'static str> {
 
         @media (max-width: 520px) {
             .card { padding: 24px 18px; }
-            .hero { margin: 40px 0 26px; }
+            .hero { margin: 22px 0 22px; }
         }
         @media (prefers-reduced-motion: reduce) {
             .blob, .grad, .hamster-glow, .status-dot { animation: none; }
@@ -680,6 +688,7 @@ pub async fn download_page() -> Html<&'static str> {
             <div class="status-pill" id="statusPill" data-state="checking"><span class="status-dot"></span><span id="statusText">checking</span></div>
         </header>
 
+        <div class="stage">
         <section class="hero">
             <h1>Snatch any video.<br><span class="grad">Stupidly fast.</span></h1>
             <p class="sub">Paste a link, hit the button, get the file.</p>
@@ -751,6 +760,7 @@ pub async fn download_page() -> Html<&'static str> {
             <!-- Result -->
             <div id="result" class="hidden result"></div>
         </section>
+        </div>
     </main>
 
     <script>
