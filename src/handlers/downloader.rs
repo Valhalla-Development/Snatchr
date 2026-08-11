@@ -1,5 +1,6 @@
 use crate::config::Config;
-use std::path::PathBuf;
+use crate::utils::video_id::extract_cache_id;
+use std::path::{Path, PathBuf};
 use yt_dlp::Downloader;
 extern crate sanitize_filename;
 use std::cell::RefCell;
@@ -32,6 +33,35 @@ pub fn init_yt_dlp() -> Result<Downloader, Box<dyn std::error::Error>> {
     Ok(fetcher)
 }
 
+/// Looks for a reusable mp4 under downloads/{video_id}/.
+/// Removes tiny/poisoned files so the next download can replace them.
+fn find_cached_mp4(download_dir: &Path, video_id: &str) -> Option<PathBuf> {
+    let cache_dir = download_dir.join(video_id);
+    if !cache_dir.is_dir() {
+        return None;
+    }
+
+    let entries = std::fs::read_dir(&cache_dir).ok()?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_file() || !path.extension().is_some_and(|ext| ext == "mp4") {
+            continue;
+        }
+
+        match std::fs::metadata(&path) {
+            Ok(metadata) if metadata.len() >= MIN_VALID_VIDEO_SIZE_BYTES => {
+                return Some(path);
+            }
+            Ok(_) => {
+                // Tiny files are usually error/anti-bot payloads — drop them.
+                let _ = std::fs::remove_file(&path);
+            }
+            Err(_) => {}
+        }
+    }
+    None
+}
+
 /*
  * Downloads a video from the given URL and associates it with a job ID.
  * Measures download duration, logs progress and errors.
@@ -56,6 +86,22 @@ pub fn download_video(
             download_dir.display()
         )
         .into());
+    }
+
+    // Fast path: parse the platform id from the URL and reuse a cached file
+    // without initializing yt-dlp or fetching metadata.
+    if let Some(cache_id) = extract_cache_id(&url) {
+        if let Some(path) = find_cached_mp4(&download_dir, &cache_id) {
+            let duration = start.elapsed();
+            info!(
+                job = %job_id,
+                video = %cache_id,
+                path = %path.display(),
+                took = format_args!("{:.2}s", duration.as_secs_f64()),
+                "Cache hit, skipped metadata"
+            );
+            return Ok((path, duration));
+        }
     }
 
     // Initialize yt-dlp fetcher with corruption handling
@@ -103,42 +149,22 @@ pub fn download_video(
 
         info!(job = %job_id, title = %video.title, "Metadata fetched");
 
-        // Use video ID for caching
+        // Fallback cache check using yt-dlp's canonical id (covers short links
+        // and URL shapes we couldn't parse up front).
         let video_id = &video.id;
         *cached_video_id.borrow_mut() = Some(video_id.clone());
-        let cache_dir = PathBuf::from(&config.download_dir).join(video_id);
-
-        // Check if video is already cached
-        if cache_dir.exists() {
-            // Look for existing video file in cache directory
-            if let Ok(entries) = std::fs::read_dir(&cache_dir) {
-                for entry in entries.flatten() {
-                    let path = entry.path();
-                    if path.is_file() && path.extension().is_some_and(|ext| ext == "mp4") {
-                        // Verify file is not empty/corrupted.
-                        // Tiny files are usually error/anti-bot payloads and should not be reused.
-                        if let Ok(metadata) = std::fs::metadata(&path) {
-                            if metadata.len() >= MIN_VALID_VIDEO_SIZE_BYTES {
-                                let duration = start.elapsed();
-                                info!(
-                                    job = %job_id,
-                                    video = %video_id,
-                                    path = %path.display(),
-                                    took = format_args!("{:.2}s", duration.as_secs_f64()),
-                                    "Cache hit, serving existing file"
-                                );
-                                return Ok(path);
-                            } else {
-                                // Remove poisoned cache entries to force a clean redownload.
-                                let _ = std::fs::remove_file(&path);
-                            }
-                        }
-                    }
-                }
-            }
+        if let Some(path) = find_cached_mp4(&download_dir, video_id) {
+            info!(
+                job = %job_id,
+                video = %video_id,
+                path = %path.display(),
+                "Cache hit after metadata"
+            );
+            return Ok(path);
         }
 
-        // Cache miss or invalid cache - proceed with download
+        // Cache miss — download into downloads/{video_id}/
+        let cache_dir = download_dir.join(video_id);
         std::fs::create_dir_all(&cache_dir)?;
         debug!(job = %job_id, dir = %cache_dir.display(), "Cache directory created");
 
@@ -276,6 +302,27 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn cache_hit_from_url_skips_yt_dlp() {
+        let download_dir = TempDownloadDir::new();
+        let video_id = "dQw4w9WgXcQ";
+        let video_dir = download_dir.0.join(video_id);
+        fs::create_dir_all(&video_dir).expect("cache directory should be created");
+
+        let cached_file = video_dir.join("cached.mp4");
+        fs::write(&cached_file, vec![0_u8; MIN_VALID_VIDEO_SIZE_BYTES as usize])
+            .expect("cached file should be written");
+
+        let _download_dir = EnvVarGuard::set("DOWNLOAD_DIR", &download_dir.0);
+        let (path, _duration) = download_video(
+            format!("https://www.youtube.com/watch?v={video_id}"),
+            "cache-hit-test".to_string(),
+        )
+        .expect("cached video should be returned without downloading");
+
+        assert_eq!(path, cached_file);
     }
 
     #[test]
