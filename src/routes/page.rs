@@ -211,23 +211,33 @@ pub async fn download_page() -> Html<&'static str> {
 
         /* =========================== Layout ============================= */
         .shell {
-            position: relative;
             width: 100%; max-width: 760px;
             margin: 0 auto;
-            padding: 28px 20px;
+            padding: 28px 20px 48px;
             min-height: 100vh;
-            display: grid;
-            align-items: center;
+            display: flex;
+            flex-direction: column;
         }
         .topbar {
-            position: absolute;
-            top: 28px; left: 20px; right: 20px;
+            flex: none;
+            position: relative;
             z-index: 2;
             display: flex; align-items: center; justify-content: space-between;
             animation: fadeDown 0.5s ease both;
         }
         .stage {
+            flex: 1;
             width: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            justify-content: safe center;
+            min-height: 0;
+        }
+        /* When download UI expands, pin content below the header (no overlap). */
+        .shell.is-busy .stage {
+            justify-content: flex-start;
+            padding-top: 18px;
         }
         @keyframes fadeDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
         .brand { display: flex; align-items: center; gap: 12px; }
@@ -752,7 +762,6 @@ pub async fn download_page() -> Html<&'static str> {
                     <div class="hamster-glow"></div>
                 </div>
                 <div id="loaderQuip" class="loader-quip">Feeding the hamster…</div>
-                <div class="loader-note">Bigger videos take longer — the wheel only spins so fast</div>
                 <div id="loaderElapsed" class="loader-elapsed">0s</div>
                 <div id="loadingHistory" style="width:100%"></div>
             </div>
@@ -919,6 +928,14 @@ pub async fn download_page() -> Html<&'static str> {
         // --- Main form ---
         const ctaButton = document.getElementById('downloadBtn');
         const CTA_IDLE_HTML = ctaButton.innerHTML;
+        const shell = document.querySelector('.shell');
+        const loadingEl = document.getElementById('loading');
+        const resultEl = document.getElementById('result');
+
+        function syncBusyLayout() {
+            const busy = !loadingEl.classList.contains('hidden') || !resultEl.classList.contains('hidden');
+            shell.classList.toggle('is-busy', busy);
+        }
 
         function shakeInput() {
             const wrap = document.querySelector('.input-wrap');
@@ -933,14 +950,15 @@ pub async fn download_page() -> Html<&'static str> {
 
             const url = document.getElementById('videoUrl').value;
             const button = ctaButton;
-            const loading = document.getElementById('loading');
-            const result = document.getElementById('result');
+            const loading = loadingEl;
+            const result = resultEl;
 
             if (!isValidVideoUrl(url)) {
                 shakeInput();
                 result.innerHTML = panelHTML('error', ICON_WARN, 'That link looks off',
                     'Please paste a URL from a supported platform — YouTube, TikTok, Vimeo, Twitch, Instagram, X or Facebook.');
                 result.classList.remove('hidden');
+                syncBusyLayout();
                 return;
             }
 
@@ -949,6 +967,7 @@ pub async fn download_page() -> Html<&'static str> {
                 result.innerHTML = panelHTML('warn', ICON_WARN, 'Nice try, smarty pants 🤦',
                     'You literally just downloaded this video. Try a different URL, or refresh the page if you really want it again.');
                 result.classList.remove('hidden');
+                syncBusyLayout();
                 return;
             }
 
@@ -958,6 +977,7 @@ pub async fn download_page() -> Html<&'static str> {
             document.getElementById('loadingHistory').innerHTML = historyHTML(downloadHistory);
             loading.classList.remove('hidden');
             result.classList.add('hidden');
+            syncBusyLayout();
             startQuips();
             startElapsed();
             loading.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1032,6 +1052,7 @@ pub async fn download_page() -> Html<&'static str> {
                 button.innerHTML = CTA_IDLE_HTML;
                 loading.classList.add('hidden');
                 result.classList.remove('hidden');
+                syncBusyLayout();
                 result.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
         });
