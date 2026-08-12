@@ -1329,7 +1329,7 @@ checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
 [[package]]
 name = "media-seek"
 version = "0.4.0"
-source = "git+https://github.com/Valhalla-Development/yt-dlp.git?tag=v2.8.3#da20af360e584cdb60fb81dccd6a5b118553f714"
+source = "git+https://github.com/Valhalla-Development/yt-dlp.git?branch=develop#57d13d4b89fcacd3d141887a41176388e7e0b2be"
 dependencies = [
  "futures-util",
  "thiserror",
@@ -2157,7 +2157,7 @@ checksum = "8ed6a63f02c8539c91a8685a86f4099661ba3da017932f6ebbea6de3f0fa7c90"
 
 [[package]]
 name = "snatchr"
-version = "0.4.8"
+version = "0.4.9"
 dependencies = [
  "axum",
  "dotenvy",
@@ -3026,7 +3026,7 @@ dependencies = [
 [[package]]
 name = "yt-dlp"
 version = "2.8.3"
-source = "git+https://github.com/Valhalla-Development/yt-dlp.git?tag=v2.8.3#da20af360e584cdb60fb81dccd6a5b118553f714"
+source = "git+https://github.com/Valhalla-Development/yt-dlp.git?branch=develop#57d13d4b89fcacd3d141887a41176388e7e0b2be"
 dependencies = [
  "async-trait",
  "cfg-if",
