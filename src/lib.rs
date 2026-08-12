@@ -17,6 +17,7 @@ mod handlers;
 mod utils;
 use utils::cleanup::start_cleanup_scheduler;
 use utils::logger;
+use utils::ytdlp_update::start_ytdlp_update_scheduler;
 
 pub use utils::logger::init as init_logging;
 
@@ -44,6 +45,9 @@ pub async fn run_server() {
 
     // Start cleanup scheduler in background
     tokio::spawn(start_cleanup_scheduler());
+
+    // Keep yt-dlp current
+    tokio::spawn(start_ytdlp_update_scheduler());
 
     // Start serving requests
     axum::serve(listener, app).await.unwrap();
