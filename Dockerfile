@@ -1,6 +1,16 @@
-# Build stage — pin to bookworm so glibc matches the runtime image.
-# (rust:*-slim defaults to trixie/glibc 2.38+, which breaks on bookworm.)
-FROM rust:1.93-slim-bookworm AS builder
+# syntax=docker/dockerfile:1.7
+#
+# Build + runtime on Debian Trixie so glibc matches:
+# - the Rust toolchain default (rust:*-slim)
+# - ffmpeg/yt-dlp binaries auto-downloaded into libs/
+#
+# cargo-chef stages keep dependency rebuilds cheap; BuildKit cache mounts
+# speed up registry/git/target reuse on CI.
+
+# --- chef: toolchain + build deps (cached unless this stage changes) ---
+FROM rust:1.93-slim AS chef
+
+WORKDIR /app
 
 # git is required for Cargo git dependencies (yt-dlp fork)
 RUN apt-get update && apt-get install -y \
@@ -9,31 +19,39 @@ RUN apt-get update && apt-get install -y \
     git \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
-    && cargo install cargo-chef
+    && cargo install cargo-chef --locked
 
-WORKDIR /app
+# --- planner: compute dependency recipe ---
+FROM chef AS planner
 
-# Step 1: Copy dependency files and create minimal project structure
-# (both lib + bin stubs — Snatchr is a library crate with a binary)
+# Snatchr is a library crate with a binary — both stubs are required
 COPY Cargo.toml Cargo.lock ./
 RUN mkdir src \
     && echo "fn main() {}" > src/main.rs \
     && echo "" > src/lib.rs
-
-# Step 2: Generate dependency recipe
 RUN cargo chef prepare --recipe-path recipe.json
 
-# Step 3: Build dependencies (this layer cached unless dependencies change)
-RUN cargo chef cook --release --recipe-path recipe.json
+# --- builder: cook deps, then compile the real app ---
+FROM chef AS builder
 
-# Step 4: Build the actual application
+COPY --from=planner /app/recipe.json recipe.json
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    cargo chef cook --release --recipe-path recipe.json
+
+COPY Cargo.toml Cargo.lock ./
 COPY src/ ./src/
-RUN cargo build --release --bin snatchr
+# Cache mount for target/ — copy the binary out so the next stage can use it
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,target=/app/target \
+    cargo build --release --bin snatchr \
+    && cp /app/target/release/snatchr /app/snatchr
 
-# Runtime stage - debian-slim with required libraries
-FROM debian:bookworm-slim
+# --- runtime: same distro/glibc as the builder (Trixie) ---
+FROM debian:trixie-slim
 
-# Install runtime dependencies for yt-dlp and the application
+# Runtime deps for yt-dlp / networking / healthchecks
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     zlib1g \
@@ -46,7 +64,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copy only the binary from builder stage
-COPY --from=builder /app/target/release/snatchr .
+COPY --from=builder /app/snatchr .
 
 # Set the host to 0.0.0.0
 ENV HOST=0.0.0.0
