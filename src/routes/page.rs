@@ -728,14 +728,14 @@ pub async fn download_page() -> Html<&'static str> {
                 </button>
             </form>
 
-            <div class="platforms" aria-label="Supported platforms">
+            <div class="platforms" aria-label="Works with many sites">
                 <span class="chip"><i style="background:#ff5b5b"></i>YouTube</span>
                 <span class="chip"><i style="background:#7ee7f9"></i>TikTok</span>
-                <span class="chip"><i style="background:#7aa8ff"></i>Vimeo</span>
                 <span class="chip"><i style="background:#b48cff"></i>Twitch</span>
                 <span class="chip"><i style="background:#ff8ac4"></i>Instagram</span>
                 <span class="chip"><i style="background:#e7e7ef"></i>X</span>
-                <span class="chip"><i style="background:#86a2ff"></i>Facebook</span>
+                <span class="chip"><i style="background:#86a2ff"></i>Reddit</span>
+                <span class="chip"><i style="background:#a78bfa"></i>+1000 more</span>
             </div>
 
             <!-- Loading state -->
@@ -773,21 +773,11 @@ pub async fn download_page() -> Html<&'static str> {
     </main>
 
     <script>
-        // URL validation: basic allow-list by hostname; backend performs canonical validation
+        // Any http(s) URL with a host
         function isValidVideoUrl(url) {
             try {
                 const u = new URL(url);
-                const host = u.hostname.toLowerCase();
-                const allowedHosts = [
-                    'youtube.com','www.youtube.com','m.youtube.com','youtu.be',
-                    'vimeo.com','www.vimeo.com',
-                    'twitch.tv','www.twitch.tv','clips.twitch.tv',
-                    'tiktok.com','www.tiktok.com','vm.tiktok.com',
-                    'instagram.com','www.instagram.com',
-                    'twitter.com','www.twitter.com','x.com','www.x.com',
-                    'facebook.com','www.facebook.com','fb.watch'
-                ];
-                return allowedHosts.includes(host);
+                return (u.protocol === 'http:' || u.protocol === 'https:') && !!u.hostname;
             } catch (_) {
                 return false;
             }
@@ -956,7 +946,7 @@ pub async fn download_page() -> Html<&'static str> {
             if (!isValidVideoUrl(url)) {
                 shakeInput();
                 result.innerHTML = panelHTML('error', ICON_WARN, 'That link looks off',
-                    'Please paste a URL from a supported platform — YouTube, TikTok, Vimeo, Twitch, Instagram, X or Facebook.');
+                    'Paste a valid URL.');
                 result.classList.remove('hidden');
                 syncBusyLayout();
                 return;
