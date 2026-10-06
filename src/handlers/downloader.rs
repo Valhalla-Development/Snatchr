@@ -450,25 +450,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "downloads a real SoundCloud track; run manually"]
-    fn downloads_real_soundcloud_track() {
-        let download_dir = TempDownloadDir::new();
-        let _download_dir = EnvVarGuard::set("DOWNLOAD_DIR", &download_dir.0);
-        let url = "https://soundcloud.com/ethmusic/lostin-powers-she-so-heavy";
-        let (path, duration) = download_video(url.to_string(), "soundcloud-smoke-test".to_string())
-            .expect("SoundCloud track should download successfully");
-        assert!(path.starts_with(&download_dir.0));
-        assert!(is_media_file(&path));
-        assert_ne!(path.extension().unwrap(), "mp4");
-        assert!(fs::metadata(&path).unwrap().len() >= MIN_VALID_MEDIA_SIZE_BYTES);
-        assert!(!duration.is_zero());
-
-        let (cached_path, _) = download_video(url.to_string(), "soundcloud-cache-test".to_string())
-            .expect("SoundCloud track should be cached");
-        assert_eq!(cached_path, path);
-    }
-
-    #[test]
     fn publish_rejects_undersized_downloads() {
         let download_dir = TempDownloadDir::new();
         let temp = download_dir.0.join(".video.tmp.mp4");
@@ -518,48 +499,81 @@ mod tests {
         assert_eq!(path, cached_file);
     }
 
-    #[test]
-    #[ignore = "downloads a real YouTube video; run manually"]
-    fn downloads_real_youtube_video() {
+    // These tests mutate process-wide configuration, so run them serially.
+    fn assert_live_download(platform: &str, default_url: &str, expected_audio: bool) {
         let download_dir = TempDownloadDir::new();
         let _download_dir = EnvVarGuard::set("DOWNLOAD_DIR", &download_dir.0);
         let _video_quality = EnvVarGuard::set("VIDEO_QUALITY", "Low");
-        let _video_codec = EnvVarGuard::set("VIDEO_CODEC", "any");
+        let _video_codec = EnvVarGuard::set("VIDEO_CODEC", "avc1");
         let _audio_quality = EnvVarGuard::set("AUDIO_QUALITY", "Low");
         let _audio_codec = EnvVarGuard::set("AUDIO_CODEC", "any");
-        let url = std::env::var("SNATCHR_TEST_YOUTUBE_URL")
-            .unwrap_or_else(|_| "https://www.youtube.com/watch?v=tCDvOQI3pco".to_string());
+        let url = std::env::var(format!("SNATCHR_TEST_{platform}_URL"))
+            .unwrap_or_else(|_| default_url.to_string());
 
-        let (path, duration) = download_video(url, "youtube-smoke-test".to_string())
-            .expect("YouTube video should download successfully");
-        let metadata = fs::metadata(&path).expect("downloaded video should exist");
-
+        let (path, duration) = download_video(url.clone(), format!("{platform}-smoke-test"))
+            .expect("Media should download successfully");
         assert!(path.starts_with(&download_dir.0));
-        assert!(metadata.is_file());
-        assert!(metadata.len() >= MIN_VALID_MEDIA_SIZE_BYTES);
+        assert!(is_media_file(&path));
+        assert!(fs::metadata(&path).unwrap().len() >= MIN_VALID_MEDIA_SIZE_BYTES);
         assert!(!duration.is_zero());
+        if expected_audio {
+            assert_ne!(path.extension().unwrap(), "mp4");
+        } else {
+            assert_eq!(path.extension().unwrap(), "mp4");
+        }
+
+        // Decode the media rather than accepting an error page with a media suffix.
+        let decoded = std::process::Command::new("libs/ffmpeg")
+            .args(["-v", "error", "-i"])
+            .arg(&path)
+            .args(["-t", "1", "-f", "null", "-"])
+            .output()
+            .expect("FFmpeg should validate downloaded media");
+        assert!(decoded.status.success(), "Downloaded media should decode");
+        let modified = fs::metadata(&path).unwrap().modified().unwrap();
+        let (cached, _) = download_video(url, format!("{platform}-cache-test"))
+            .expect("Completed media should be cached");
+        assert_eq!(cached, path);
+        assert_eq!(fs::metadata(&cached).unwrap().modified().unwrap(), modified);
     }
 
     #[test]
-    #[ignore = "downloads a real TikTok video; run manually"]
+    #[ignore = "downloads a real YouTube video; run manually with one test thread"]
+    fn downloads_real_youtube_video() {
+        assert_live_download(
+            "YOUTUBE",
+            "https://www.youtube.com/watch?v=tCDvOQI3pco",
+            false,
+        );
+    }
+
+    #[test]
+    #[ignore = "downloads a real TikTok video; run manually with one test thread"]
     fn downloads_real_tiktok_video() {
-        let download_dir = TempDownloadDir::new();
-        let _download_dir = EnvVarGuard::set("DOWNLOAD_DIR", &download_dir.0);
-        let _video_quality = EnvVarGuard::set("VIDEO_QUALITY", "Low");
-        let _video_codec = EnvVarGuard::set("VIDEO_CODEC", "any");
-        let _audio_quality = EnvVarGuard::set("AUDIO_QUALITY", "Low");
-        let _audio_codec = EnvVarGuard::set("AUDIO_CODEC", "any");
-        let url = std::env::var("SNATCHR_TEST_TIKTOK_URL").unwrap_or_else(|_| {
-            "https://www.tiktok.com/@rickastleyofficial/video/7593022588272561430".to_string()
-        });
+        assert_live_download(
+            "TIKTOK",
+            "https://www.tiktok.com/@rickastleyofficial/video/7593022588272561430",
+            false,
+        );
+    }
 
-        let (path, duration) = download_video(url, "tiktok-smoke-test".to_string())
-            .expect("TikTok video should download successfully");
-        let metadata = fs::metadata(&path).expect("downloaded video should exist");
+    #[test]
+    #[ignore = "downloads a real Instagram reel; run manually with one test thread"]
+    fn downloads_real_instagram_video() {
+        assert_live_download(
+            "INSTAGRAM",
+            "https://www.instagram.com/reel/Chunk8-jurw/",
+            false,
+        );
+    }
 
-        assert!(path.starts_with(&download_dir.0));
-        assert!(metadata.is_file());
-        assert!(metadata.len() >= MIN_VALID_MEDIA_SIZE_BYTES);
-        assert!(!duration.is_zero());
+    #[test]
+    #[ignore = "downloads a real SoundCloud track; run manually with one test thread"]
+    fn downloads_real_soundcloud_track() {
+        assert_live_download(
+            "SOUNDCLOUD",
+            "https://soundcloud.com/ethmusic/lostin-powers-she-so-heavy",
+            true,
+        );
     }
 }
