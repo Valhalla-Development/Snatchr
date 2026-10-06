@@ -298,7 +298,7 @@ pub fn download_video(
                 .await
         } else {
             fetcher
-                .download(&video, download_dir.join(&temp_relative))
+                .download(&video, &temp_relative)
                 .video_quality(config.video_quality)
                 .video_codec(config.video_codec.clone())
                 .audio_quality(config.audio_quality)
@@ -502,7 +502,14 @@ mod tests {
 
     // These tests mutate process-wide configuration, so run them serially.
     fn assert_live_download(platform: &str, default_url: &str, expected_audio: bool) {
-        let download_dir = TempDownloadDir::new();
+        // Exercise the default relative-directory layout as well as absolute paths.
+        let download_dir = if platform == "FACEBOOK" {
+            let path = PathBuf::from(format!("snatchr-download-test-{}", Uuid::new_v4()));
+            fs::create_dir_all(&path).unwrap();
+            TempDownloadDir(path)
+        } else {
+            TempDownloadDir::new()
+        };
         let _download_dir = EnvVarGuard::set("DOWNLOAD_DIR", &download_dir.0);
         let _video_quality = EnvVarGuard::set("VIDEO_QUALITY", "Low");
         let _video_codec = EnvVarGuard::set("VIDEO_CODEC", "avc1");
