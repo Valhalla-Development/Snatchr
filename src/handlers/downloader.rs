@@ -31,6 +31,7 @@ pub fn init_yt_dlp() -> Result<Downloader, Box<dyn std::error::Error>> {
     let fetcher = rt.block_on(async {
         Downloader::with_new_binaries(libraries_dir, output_dir)
             .await?
+            .with_args(vec!["--no-playlist".to_string()])
             .with_timeout(Duration::from_secs(app_config.timeout_seconds))
             .with_max_concurrent_downloads(app_config.max_concurrent_downloads)
             .with_user_agent(BROWSER_USER_AGENT)
@@ -297,7 +298,7 @@ pub fn download_video(
                 .await
         } else {
             fetcher
-                .download(&video, &temp_relative)
+                .download(&video, download_dir.join(&temp_relative))
                 .video_quality(config.video_quality)
                 .video_codec(config.video_codec.clone())
                 .audio_quality(config.audio_quality)
@@ -530,6 +531,15 @@ mod tests {
             .output()
             .expect("FFmpeg should validate downloaded media");
         assert!(decoded.status.success(), "Downloaded media should decode");
+        if platform == "REDDIT" {
+            let audio = std::process::Command::new("libs/ffmpeg")
+                .args(["-v", "error", "-i"])
+                .arg(&path)
+                .args(["-map", "0:a:0", "-t", "1", "-f", "null", "-"])
+                .output()
+                .expect("FFmpeg should validate Reddit audio");
+            assert!(audio.status.success(), "Reddit audio should be preserved");
+        }
         let modified = fs::metadata(&path).unwrap().modified().unwrap();
         let (cached, _) = download_video(url, format!("{platform}-cache-test"))
             .expect("Completed media should be cached");
@@ -574,6 +584,46 @@ mod tests {
             "SOUNDCLOUD",
             "https://soundcloud.com/ethmusic/lostin-powers-she-so-heavy",
             true,
+        );
+    }
+
+    #[test]
+    #[ignore = "downloads a real Facebook video; run manually with one test thread"]
+    fn downloads_real_facebook_video() {
+        assert_live_download(
+            "FACEBOOK",
+            "https://www.facebook.com/cnn/videos/10155529876156509/",
+            false,
+        );
+    }
+
+    #[test]
+    #[ignore = "downloads a real X video; run manually with one test thread"]
+    fn downloads_real_x_video() {
+        assert_live_download(
+            "X",
+            "https://x.com/captainamerica/status/719944021058060289",
+            false,
+        );
+    }
+
+    #[test]
+    #[ignore = "downloads a real Reddit video; run manually with one test thread"]
+    fn downloads_real_reddit_video() {
+        assert_live_download(
+            "REDDIT",
+            "https://www.reddit.com/r/videos/comments/6rrwyj/that_small_heart_attack/",
+            false,
+        );
+    }
+
+    #[test]
+    #[ignore = "downloads a silent Reddit video; run manually with one test thread"]
+    fn downloads_real_reddit_silent_video() {
+        assert_live_download(
+            "REDDIT_SILENT",
+            "https://www.reddit.com/r/aww/comments/90bu6w/heat_index_was_110_degrees_so_we_offered_him_a/",
+            false,
         );
     }
 }

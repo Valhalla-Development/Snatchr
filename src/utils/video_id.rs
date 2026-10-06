@@ -10,7 +10,10 @@ use std::sync::LazyLock;
  */
 
 static YOUTUBE_WATCH: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?:youtube\.com|youtube-nocookie\.com)/watch\?(?:[^#]*&)?v=([A-Za-z0-9_-]{11})").unwrap()
+    Regex::new(
+        r"(?i)(?:youtube\.com|youtube-nocookie\.com)/watch\?(?:[^#]*&)?v=([A-Za-z0-9_-]{11})",
+    )
+    .unwrap()
 });
 static YOUTUBE_SHORTS: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)(?:youtube\.com|youtube-nocookie\.com)/shorts/([A-Za-z0-9_-]{11})").unwrap()
@@ -30,7 +33,7 @@ static VIMEO: LazyLock<Regex> =
 static INSTAGRAM: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)instagram\.com/(?:reel|p|tv)/([A-Za-z0-9_-]+)").unwrap());
 static TWITTER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)(?:twitter|x)\.com/[^/]+/status/(\d+)").unwrap());
+    LazyLock::new(|| Regex::new(r"(?i)(?:twitter|x)\.com/(?:i/web|[^/]+)/status/(\d+)").unwrap());
 static TWITCH_CLIP: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)(?:clips\.twitch\.tv/|twitch\.tv/[^/]+/clip/)([A-Za-z0-9_-]+)").unwrap()
 });
@@ -38,6 +41,10 @@ static FACEBOOK_VIDEO: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)facebook\.com/.+/videos/(\d+)").unwrap());
 static FACEBOOK_WATCH: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)(?:facebook\.com/watch/?\?v=|fb\.watch/)(\d+)").unwrap());
+static FACEBOOK_REEL: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)facebook\.com/reel/(\d+)").unwrap());
+static FACEBOOK_VIDEO_PHP: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)facebook\.com/video\.php\?(?:[^#]*&)?v=(\d+)").unwrap());
 
 /// Extracts a cache key (platform video id) from a URL, when the format is known.
 pub fn extract_cache_id(url: &str) -> Option<String> {
@@ -54,6 +61,8 @@ pub fn extract_cache_id(url: &str) -> Option<String> {
         &*TWITCH_CLIP,
         &*FACEBOOK_VIDEO,
         &*FACEBOOK_WATCH,
+        &*FACEBOOK_REEL,
+        &*FACEBOOK_VIDEO_PHP,
     ] {
         if let Some(caps) = re.captures(url) {
             if let Some(id) = caps.get(1) {
@@ -129,5 +138,38 @@ mod tests {
         assert!(extract_cache_id("https://vm.tiktok.com/ZMabcdef/").is_none());
         assert!(extract_cache_id("https://example.com/video/123").is_none());
         assert!(extract_cache_id("not a url").is_none());
+    }
+
+    #[test]
+    fn extracts_facebook_and_x_link_variants() {
+        for url in [
+            "https://www.facebook.com/cnn/videos/10155529876156509/",
+            "https://www.facebook.com/reel/10155529876156509/",
+            "https://www.facebook.com/video.php?foo=bar&v=10155529876156509",
+        ] {
+            assert_eq!(extract_cache_id(url).as_deref(), Some("10155529876156509"));
+        }
+        for url in [
+            "https://x.com/captainamerica/status/719944021058060289",
+            "https://twitter.com/captainamerica/status/719944021058060289",
+            "https://x.com/i/web/status/719944021058060289",
+        ] {
+            assert_eq!(extract_cache_id(url).as_deref(), Some("719944021058060289"));
+        }
+    }
+
+    #[test]
+    fn reddit_and_soundcloud_use_canonical_metadata_ids() {
+        // Reddit post IDs and SoundCloud slugs differ from the downloaded media IDs.
+        assert!(
+            extract_cache_id(
+                "https://www.reddit.com/r/videos/comments/6rrwyj/that_small_heart_attack/"
+            )
+            .is_none()
+        );
+        assert!(
+            extract_cache_id("https://soundcloud.com/ethmusic/lostin-powers-she-so-heavy")
+                .is_none()
+        );
     }
 }
