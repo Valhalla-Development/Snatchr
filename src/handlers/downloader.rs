@@ -1,13 +1,15 @@
 use crate::config::Config;
 use crate::utils::video_id::extract_cache_id;
+use crate::utils::{is_incomplete_media_file, is_media_file};
 use std::path::{Path, PathBuf};
 use yt_dlp::Downloader;
+use yt_dlp::client::streams::selection::VideoSelection;
 extern crate sanitize_filename;
 use std::cell::RefCell;
 use std::time::{Duration, Instant};
 use tracing::{debug, error, info, warn};
 
-const MIN_VALID_VIDEO_SIZE_BYTES: u64 = 1024;
+const MIN_VALID_MEDIA_SIZE_BYTES: u64 = 1024;
 // Browser-like UA so sites that challenge bare yt-dlp (e.g. TikTok) still work.
 // Forwarded to extractors by our local yt-dlp fork.
 const BROWSER_USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) \
@@ -39,17 +41,17 @@ pub fn init_yt_dlp() -> Result<Downloader, Box<dyn std::error::Error>> {
 }
 
 /// True when a file is a finished cache entry (not an in-progress temp download).
-fn is_final_cached_mp4(path: &Path) -> bool {
+fn is_final_cached_media(path: &Path) -> bool {
     let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
         return false;
     };
     // In-progress downloads use hidden names like ".Title.abcd1234.tmp.mp4"
-    path.extension().is_some_and(|ext| ext == "mp4") && !name.starts_with('.')
+    is_media_file(path) && !name.starts_with('.')
 }
 
-/// Looks for a reusable mp4 under downloads/{video_id}/.
+/// Looks for reusable video or audio under downloads/{video_id}/.
 /// Removes tiny/poisoned final files so the next download can replace them.
-fn find_cached_mp4(download_dir: &Path, video_id: &str) -> Option<PathBuf> {
+fn find_cached_media(download_dir: &Path, video_id: &str) -> Option<PathBuf> {
     let cache_dir = download_dir.join(video_id);
     if !cache_dir.is_dir() {
         return None;
@@ -58,12 +60,12 @@ fn find_cached_mp4(download_dir: &Path, video_id: &str) -> Option<PathBuf> {
     let entries = std::fs::read_dir(&cache_dir).ok()?;
     for entry in entries.flatten() {
         let path = entry.path();
-        if !path.is_file() || !is_final_cached_mp4(&path) {
+        if !path.is_file() || !is_final_cached_media(&path) {
             continue;
         }
 
         match std::fs::metadata(&path) {
-            Ok(metadata) if metadata.len() >= MIN_VALID_VIDEO_SIZE_BYTES => {
+            Ok(metadata) if metadata.len() >= MIN_VALID_MEDIA_SIZE_BYTES => {
                 return Some(path);
             }
             Ok(_) => {
@@ -83,10 +85,7 @@ fn scrub_incomplete_downloads(cache_dir: &Path) {
     };
     for entry in entries.flatten() {
         let path = entry.path();
-        let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
-            continue;
-        };
-        if path.is_file() && name.starts_with('.') && name.ends_with(".tmp.mp4") {
+        if path.is_file() && is_incomplete_media_file(&path) {
             let _ = std::fs::remove_file(&path);
         }
     }
@@ -99,12 +98,9 @@ fn publish_completed_download(
     final_path: &Path,
 ) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let size = std::fs::metadata(temp_path)?.len();
-    if size < MIN_VALID_VIDEO_SIZE_BYTES {
+    if size < MIN_VALID_MEDIA_SIZE_BYTES {
         let _ = std::fs::remove_file(temp_path);
-        return Err(format!(
-            "Downloaded file too small ({size} bytes) — refusing to cache"
-        )
-        .into());
+        return Err(format!("Downloaded file too small ({size} bytes), refusing to cache").into());
     }
 
     if final_path.exists() {
@@ -143,7 +139,7 @@ pub fn download_video(
     // Fast path: parse the platform id from the URL and reuse a cached file
     // without initializing yt-dlp or fetching metadata.
     if let Some(cache_id) = extract_cache_id(&url) {
-        if let Some(path) = find_cached_mp4(&download_dir, &cache_id) {
+        if let Some(path) = find_cached_media(&download_dir, &cache_id) {
             let duration = start.elapsed();
             info!(
                 job = %job_id,
@@ -205,7 +201,7 @@ pub fn download_video(
         // and URL shapes we couldn't parse up front).
         let video_id = &video.id;
         *cached_video_id.borrow_mut() = Some(video_id.clone());
-        if let Some(path) = find_cached_mp4(&download_dir, video_id) {
+        if let Some(path) = find_cached_media(&download_dir, video_id) {
             info!(
                 job = %job_id,
                 video = %video_id,
@@ -253,11 +249,31 @@ pub fn download_video(
         } else {
             clean_title
         };
-        // Keep a real .mp4 extension so remux/ffmpeg behave, but hide the name
-        // so find_cached_mp4 ignores it until we atomically publish.
+        // Audio-only sources need an audio format rather than the video pipeline.
+        let audio_format = if video.formats.iter().any(|format| {
+            let kind = format.format_type();
+            kind.is_video() || kind.is_audio_and_video()
+        }) {
+            None
+        } else {
+            Some(
+                video
+                    .select_audio_format(config.audio_quality, config.audio_codec.clone())
+                    .ok_or("No audio format available")?,
+            )
+        };
+        let extension = match audio_format {
+            Some(format) => format.download_info.ext.as_str(),
+            None => "mp4",
+        };
+        if !is_media_file(&PathBuf::from(format!("media.{extension}"))) {
+            return Err(format!("Unsupported audio file extension: {extension}").into());
+        }
+
+        // Preserve the selected container extension and hide partial files until publication.
         let job_suffix = job_id.get(..8).unwrap_or("download");
-        let temp_relative = format!("{video_id}/.{clean_title}.{job_suffix}.tmp.mp4");
-        let final_relative = format!("{video_id}/{clean_title}.mp4");
+        let temp_relative = format!("{video_id}/.{clean_title}.{job_suffix}.tmp.{extension}");
+        let final_relative = format!("{video_id}/{clean_title}.{extension}");
         let final_path = download_dir.join(&final_relative);
 
         info!(
@@ -270,15 +286,26 @@ pub fn download_video(
         );
 
         // Download to a temp name, then rename into place only if it looks valid.
-        let temp_path = match fetcher
-            .download(&video, &temp_relative)
-            .video_quality(config.video_quality)
-            .video_codec(config.video_codec.clone())
-            .audio_quality(config.audio_quality)
-            .audio_codec(config.audio_codec.clone())
-            .execute()
-            .await
-        {
+        let download_result = if let Some(format) = audio_format {
+            // Let yt-dlp handle SoundCloud's HTTP/HLS streams and extractor headers.
+            fetcher
+                .download_format_with_ytdlp(
+                    &url,
+                    &format.format_id,
+                    download_dir.join(&temp_relative),
+                )
+                .await
+        } else {
+            fetcher
+                .download(&video, &temp_relative)
+                .video_quality(config.video_quality)
+                .video_codec(config.video_codec.clone())
+                .audio_quality(config.audio_quality)
+                .audio_codec(config.audio_codec.clone())
+                .execute()
+                .await
+        };
+        let temp_path = match download_result {
             Ok(path) => path,
             Err(e) => {
                 let leftover = download_dir.join(&temp_relative);
@@ -381,7 +408,7 @@ mod tests {
     }
 
     #[test]
-    fn find_cached_mp4_ignores_incomplete_temp_files() {
+    fn find_cached_media_ignores_incomplete_temp_files() {
         let download_dir = TempDownloadDir::new();
         let video_id = "abc123";
         let video_dir = download_dir.0.join(video_id);
@@ -389,15 +416,56 @@ mod tests {
 
         fs::write(
             video_dir.join(".Title.job12345.tmp.mp4"),
-            vec![0_u8; MIN_VALID_VIDEO_SIZE_BYTES as usize * 10],
+            vec![0_u8; MIN_VALID_MEDIA_SIZE_BYTES as usize * 10],
         )
         .unwrap();
 
-        assert!(find_cached_mp4(&download_dir.0, video_id).is_none());
+        assert!(find_cached_media(&download_dir.0, video_id).is_none());
 
         let final_path = video_dir.join("Title.mp4");
-        fs::write(&final_path, vec![0_u8; MIN_VALID_VIDEO_SIZE_BYTES as usize]).unwrap();
-        assert_eq!(find_cached_mp4(&download_dir.0, video_id), Some(final_path));
+        fs::write(&final_path, vec![0_u8; MIN_VALID_MEDIA_SIZE_BYTES as usize]).unwrap();
+        assert_eq!(
+            find_cached_media(&download_dir.0, video_id),
+            Some(final_path)
+        );
+    }
+
+    #[test]
+    fn audio_cache_ignores_and_scrubs_partial_files() {
+        let download_dir = TempDownloadDir::new();
+        let media_dir = download_dir.0.join("soundcloud-id");
+        fs::create_dir_all(&media_dir).unwrap();
+        let partial = media_dir.join(".Track.job12345.tmp.m4a");
+        fs::write(&partial, vec![0_u8; MIN_VALID_MEDIA_SIZE_BYTES as usize]).unwrap();
+        assert!(find_cached_media(&download_dir.0, "soundcloud-id").is_none());
+
+        let final_path = media_dir.join("Track.m4a");
+        fs::write(&final_path, vec![0_u8; MIN_VALID_MEDIA_SIZE_BYTES as usize]).unwrap();
+        scrub_incomplete_downloads(&media_dir);
+        assert!(!partial.exists());
+        assert_eq!(
+            find_cached_media(&download_dir.0, "soundcloud-id"),
+            Some(final_path)
+        );
+    }
+
+    #[test]
+    #[ignore = "downloads a real SoundCloud track; run manually"]
+    fn downloads_real_soundcloud_track() {
+        let download_dir = TempDownloadDir::new();
+        let _download_dir = EnvVarGuard::set("DOWNLOAD_DIR", &download_dir.0);
+        let url = "https://soundcloud.com/ethmusic/lostin-powers-she-so-heavy";
+        let (path, duration) = download_video(url.to_string(), "soundcloud-smoke-test".to_string())
+            .expect("SoundCloud track should download successfully");
+        assert!(path.starts_with(&download_dir.0));
+        assert!(is_media_file(&path));
+        assert_ne!(path.extension().unwrap(), "mp4");
+        assert!(fs::metadata(&path).unwrap().len() >= MIN_VALID_MEDIA_SIZE_BYTES);
+        assert!(!duration.is_zero());
+
+        let (cached_path, _) = download_video(url.to_string(), "soundcloud-cache-test".to_string())
+            .expect("SoundCloud track should be cached");
+        assert_eq!(cached_path, path);
     }
 
     #[test]
@@ -418,7 +486,7 @@ mod tests {
         let download_dir = TempDownloadDir::new();
         let temp = download_dir.0.join(".video.tmp.mp4");
         let final_path = download_dir.0.join("video.mp4");
-        fs::write(&temp, vec![0_u8; MIN_VALID_VIDEO_SIZE_BYTES as usize]).unwrap();
+        fs::write(&temp, vec![0_u8; MIN_VALID_MEDIA_SIZE_BYTES as usize]).unwrap();
 
         let published = publish_completed_download(&temp, &final_path).unwrap();
         assert_eq!(published, final_path);
@@ -434,8 +502,11 @@ mod tests {
         fs::create_dir_all(&video_dir).expect("cache directory should be created");
 
         let cached_file = video_dir.join("cached.mp4");
-        fs::write(&cached_file, vec![0_u8; MIN_VALID_VIDEO_SIZE_BYTES as usize])
-            .expect("cached file should be written");
+        fs::write(
+            &cached_file,
+            vec![0_u8; MIN_VALID_MEDIA_SIZE_BYTES as usize],
+        )
+        .expect("cached file should be written");
 
         let _download_dir = EnvVarGuard::set("DOWNLOAD_DIR", &download_dir.0);
         let (path, _duration) = download_video(
@@ -465,7 +536,7 @@ mod tests {
 
         assert!(path.starts_with(&download_dir.0));
         assert!(metadata.is_file());
-        assert!(metadata.len() >= MIN_VALID_VIDEO_SIZE_BYTES);
+        assert!(metadata.len() >= MIN_VALID_MEDIA_SIZE_BYTES);
         assert!(!duration.is_zero());
     }
 
@@ -488,7 +559,7 @@ mod tests {
 
         assert!(path.starts_with(&download_dir.0));
         assert!(metadata.is_file());
-        assert!(metadata.len() >= MIN_VALID_VIDEO_SIZE_BYTES);
+        assert!(metadata.len() >= MIN_VALID_MEDIA_SIZE_BYTES);
         assert!(!duration.is_zero());
     }
 }

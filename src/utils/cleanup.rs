@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::utils::{is_incomplete_media_file, is_media_file};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
@@ -153,8 +154,8 @@ fn is_temporary_file(path: &Path) -> bool {
         || name.starts_with("temp_video")
         || name.ends_with(".tmp")
         || name.ends_with(".temp")
-        // In-progress downloads published atomically as ".Title.<job>.tmp.mp4"
-        || (name.starts_with('.') && name.ends_with(".tmp.mp4"))
+        // In-progress video and audio downloads are hidden until publication.
+        || is_incomplete_media_file(path)
 }
 
 /// Removes orphaned in-progress downloads inside a video cache directory.
@@ -181,7 +182,7 @@ fn scrub_incomplete_in_dir(dir: &Path) -> usize {
     removed
 }
 
-/// True when a directory looks like one of ours: a published mp4, an access
+/// True when a directory looks like one of ours: published media, an access
 /// marker, and/or an in-progress temp download. Skips unrelated folders that
 /// happen to sit under DOWNLOAD_DIR (the old "anything except cache/" rule).
 fn is_video_directory(path: &Path) -> bool {
@@ -201,11 +202,11 @@ fn is_video_directory(path: &Path) -> bool {
         if name == ".last_accessed" {
             return true;
         }
-        if name.starts_with('.') && name.ends_with(".tmp.mp4") {
+        if is_incomplete_media_file(&child) {
             return true;
         }
-        // Published cache entry: "Title.mp4" (not a hidden temp)
-        if child.extension().is_some_and(|ext| ext == "mp4") && !name.starts_with('.') {
+        // Published video or audio cache entry, excluding hidden partial files.
+        if is_media_file(&child) && !name.starts_with('.') {
             return true;
         }
     }
@@ -294,6 +295,8 @@ mod tests {
             ".Some_Title.abcd1234.tmp.mp4"
         )));
         assert!(!is_temporary_file(&PathBuf::from("finished.mp4")));
+        assert!(is_temporary_file(&PathBuf::from(".Track.job12345.tmp.m4a")));
+        assert!(!is_temporary_file(&PathBuf::from("Track.m4a")));
     }
 
     #[test]
@@ -313,6 +316,11 @@ mod tests {
         fs::create_dir(&with_mp4).unwrap();
         fs::write(with_mp4.join("clip.mp4"), b"video").unwrap();
         assert!(is_video_directory(&with_mp4));
+
+        let with_audio = test_dir.0.join("audio-id");
+        fs::create_dir(&with_audio).unwrap();
+        fs::write(with_audio.join("track.m4a"), b"audio").unwrap();
+        assert!(is_video_directory(&with_audio));
 
         let with_marker = test_dir.0.join("accessed-id");
         fs::create_dir(&with_marker).unwrap();
