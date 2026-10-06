@@ -11,17 +11,41 @@
     <a href="https://github.com/Valhalla-Development/Snatchr/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Valhalla-Development/Snatchr.svg?style=for-the-badge&color=blue" alt="License"></a>
     <br>
     <a href="https://app.codacy.com/gh/Valhalla-Development/Snatchr/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade"><img src="https://img.shields.io/codacy/grade/c9e654da36684620b3f6ef6d6afa8216?style=for-the-badge&color=brightgreen" alt="Codacy"></a>
-    <a href="#"><img src="https://img.shields.io/badge/Powered%20by-discord.js-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Powered by discord.js"></a>
-    <a href="#"><img src="https://img.shields.io/badge/Made%20with-TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="Made with TypeScript"></a>
+    <a href="#"><img src="https://img.shields.io/badge/Powered%20by-Axum-5865F2?style=for-the-badge&logo=rust&logoColor=white" alt="Powered by Axum"></a>
+    <a href="#"><img src="https://img.shields.io/badge/Made%20with-Rust-3178C6?style=for-the-badge&logo=rust&logoColor=white" alt="Made with Rust"></a>
   </p>
 
-  <p><em>A blazing-fast HTTP API for downloading videos from YouTube with automatic cleanup, file serving, and a modern web interface!</em></p>
+  <p><em>A blazing-fast HTTP API for downloading video and audio from multiple sites with automatic cleanup, file serving, and a modern web interface!</em></p>
 </div>
 
 ---
 ## 🌟 Welcome to Snatchr, the Ultimate Video Download API!
 
-This project provides a robust HTTP API for downloading videos from YouTube using [yt-dlp](https://github.com/yt-dlp/yt-dlp), built with [Rust](https://www.rust-lang.org/) and [Axum](https://github.com/tokio-rs/axum) for maximum performance and reliability.
+This project provides a robust HTTP API for downloading video and audio from multiple sites using [yt-dlp](https://github.com/yt-dlp/yt-dlp), built with [Rust](https://www.rust-lang.org/) and [Axum](https://github.com/tokio-rs/axum) for maximum performance and reliability.
+
+## Confirmed working sources
+
+Public examples from these sources have been downloaded and decoded by FFmpeg in the live test suite:
+
+| Source | Verified media |
+| --- | --- |
+| YouTube | Video with audio |
+| TikTok | Video |
+| Instagram | Public reel |
+| SoundCloud | Audio track |
+| Facebook | Public video |
+| X / Twitter | Public video |
+| Reddit | Video with separate audio and silent video |
+
+These checks confirm the tested examples. Individual posts can require login, expire, or become unavailable. Other yt-dlp sources may work, but are not part of this confirmed list.
+
+If a source is broken, [open an issue](https://github.com/Valhalla-Development/Snatchr/issues/new) with a public URL, the Snatchr revision, your yt-dlp binary version, and the error. We will investigate and fix it. Remove cookies, tokens, and signed CDN URLs from any logs you share.
+
+## Why Snatchr uses a Rust yt-dlp fork
+
+Snatchr uses [our Rust wrapper fork](https://github.com/Valhalla-Development/yt-dlp), based on [boul2gom/yt-dlp](https://github.com/boul2gom/yt-dlp), together with the [Python yt-dlp binary](https://github.com/yt-dlp/yt-dlp). Python yt-dlp supplies the site extractors. The Rust fork fixes how Snatchr reads metadata, selects formats, and downloads media: optional metadata, decimal durations and timestamps, unlabeled MP4 formats, protected CDN requests, DASH/HLS merging, silent video, audio-only sources, and output-directory handling.
+
+The fork retains upstream improvements while keeping these compatibility fixes. The crates.io package does not include our fork changes. Snatchr's Git dependency and `Cargo.lock` select the wrapper revision; the downloaded Python binary has its own version.
 
 ## 🎮 Features That Power Your Downloads
 
@@ -33,7 +57,7 @@ This project provides a robust HTTP API for downloading videos from YouTube usin
     </td>
     <td width="50%">
       <h3>📁 Automatic File Serving</h3>
-      <p>Direct HTTP access to downloaded files with secure path validation and streaming support.</p>
+      <p>Direct HTTP access to downloaded files with streaming support.</p>
     </td>
   </tr>
   <tr>
@@ -53,7 +77,7 @@ This project provides a robust HTTP API for downloading videos from YouTube usin
     </td>
     <td width="50%">
       <h3>⚡ Intelligent Caching</h3>
-      <p>Smart video caching by YouTube ID - never download the same video twice! Instant returns for cached content.</p>
+      <p>Reuse completed media by source ID while it remains cached.</p>
     </td>
   </tr>
   <tr>
@@ -70,7 +94,7 @@ This project provides a robust HTTP API for downloading videos from YouTube usin
 
 ## 🚀 Requirements
 
-- [Rust](https://rustup.rs/) (1.70 or later)
+- [Rust](https://rustup.rs/) with the current stable toolchain (edition 2024 and locked dependencies)
 
 ## 🛠️ Setup Guide
 
@@ -84,13 +108,13 @@ https://github.com/user-attachments/assets/77745296-b7db-4814-93c2-5002b0eabd56
 - **🎬 Instant Video Preview** - Watch downloaded videos directly in the browser with our sleek video player
 - **📋 Smart Download History** - Keep track of all your previous downloads with timestamps and file info
 - **🎨 Modern & Responsive** - Beautiful design that works perfectly on desktop, tablet, and mobile
-- **⚡ Lightning-Fast** - Just paste a YouTube URL and watch your video download in seconds
+- **⚡ Lightning-Fast** - Just paste a supported media URL and watch your video download in seconds
 - **🎯 One-Click Downloads** - No complex settings, just pure simplicity and speed
 
 ### 🚀 How to Use
 1. Start your Snatchr server
 2. Open your browser and navigate to `http://localhost:3000`
-3. Paste any YouTube URL in the elegant input field
+3. Paste a supported video or audio URL in the elegant input field
 4. Click "Download Video" and watch the magic happen!
 
 ### 🎯 Pro Tips
@@ -183,7 +207,7 @@ Download videos directly from your Apple device with our iOS Shortcut integratio
 
 ## 📡 API Usage
 
-### Download a Video
+### Download video or audio
 ```bash
 curl -X POST "http://localhost:3000/download" \
   -H "Content-Type: application/json" \
@@ -198,6 +222,10 @@ curl -X POST "http://localhost:3000/download" \
 }
 ```
 
+Send one public media URL in the `url` field. Snatchr downloads one item rather than a playlist. Video responses normally point to an MP4; audio-only sources such as SoundCloud retain the selected audio container, for example M4A. Use the returned `file_url` instead of assuming a file extension.
+
+Check the JSON `success` field. Download errors can return HTTP 200 with `success: false` and an `error` message. A successful response means the file is available at the returned URL until cleanup removes it.
+
 ## 🧹 Automatic Cleanup
 
 The server automatically cleans up old downloads based on your `CLEANUP_AFTER_MINUTES` setting. Cleanup runs periodically in the background and logs all operations.
@@ -207,10 +235,10 @@ The server automatically cleans up old downloads based on your `CLEANUP_AFTER_MI
 Snatchr features intelligent video caching that dramatically improves performance:
 
 ### 🎯 How It Works
-- **Video ID Caching**: Videos are stored using their YouTube video ID (e.g., `dQw4w9WgXcQ`)
-- **Instant Returns**: If a video is already cached, it's returned immediately without re-downloading
-- **Bandwidth Savings**: Never download the same video twice
-- **Automatic Validation**: Cached files are verified to ensure they're not corrupted
+- **Video ID Caching**: Media is stored using a platform ID extracted from the URL when possible, otherwise the canonical ID returned by yt-dlp
+- **Instant Returns**: If completed media is already cached, it's returned immediately without re-downloading
+- **Bandwidth Savings**: Reuse downloads until cleanup removes them
+- **Basic Validation**: Incomplete temporary files and files below the minimum size are excluded from cache hits
 
 ### 📁 Cache Structure
 ```
@@ -228,6 +256,22 @@ downloads/
 - **Multiple Users**: Share cached content across all users
 - **Server Efficiency**: Reduced bandwidth and processing load
 
+## Tests
+
+Run the regular regression tests:
+
+```bash
+cargo test --locked
+```
+
+The opt-in tests download actual public examples from all seven confirmed sources, decode the media with `libs/ffmpeg`, and verify cache reuse. Reddit includes both an audio/video example and a silent example. Ensure `libs/yt-dlp` and `libs/ffmpeg` are installed, then run serially because the tests temporarily change process-wide configuration:
+
+```bash
+cargo test --locked downloads_real_ -- --ignored --test-threads=1
+```
+
+To replace an expired public example, set `SNATCHR_TEST_YOUTUBE_URL`, `SNATCHR_TEST_TIKTOK_URL`, `SNATCHR_TEST_INSTAGRAM_URL`, `SNATCHR_TEST_SOUNDCLOUD_URL`, `SNATCHR_TEST_FACEBOOK_URL`, `SNATCHR_TEST_X_URL`, `SNATCHR_TEST_REDDIT_URL`, or `SNATCHR_TEST_REDDIT_SILENT_URL`. Live checks are ignored by default because site availability can change independently of Snatchr.
+
 ## 🤝 Contributing
 
 We welcome contributions to improve Snatchr! If you'd like to contribute:
@@ -239,7 +283,7 @@ We welcome contributions to improve Snatchr! If you'd like to contribute:
    ```
 3. Make your changes and commit them with a clear, descriptive message:
    ```bash
-   git commit -m 'Add feature: brief description of your changes'
+   git commit -m '✨ (downloads): Add support for a source'
    ```
 4. Push your changes to your fork:
    ```bash
@@ -266,7 +310,7 @@ This project is licensed under the GPL-3.0 License - see the LICENSE file for de
 We're constantly working to make Snatchr even better! Here's what we're cooking up:
 
 ### 🎯 Upcoming Features
-- **🌐 Multi-Platform Support** - Support for more video platforms beyond YouTube
+- **🌐 More Confirmed Sources** - Expand live coverage and fix reported source failures
 
 ### 🤝 Community Ideas
 Have a feature request or idea? We'd love to hear it! Open an issue or join our [Discord](https://discord.gg/Q3ZhdRJ) to discuss.

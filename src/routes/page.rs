@@ -733,9 +733,11 @@ pub async fn download_page() -> Html<&'static str> {
                 <span class="chip"><i style="background:#7ee7f9"></i>TikTok</span>
                 <span class="chip"><i style="background:#b48cff"></i>Twitch</span>
                 <span class="chip"><i style="background:#ff8ac4"></i>Instagram</span>
+                <span class="chip"><i style="background:#ff8b45"></i>SoundCloud</span>
+                <span class="chip"><i style="background:#6b9dff"></i>Facebook</span>
                 <span class="chip"><i style="background:#e7e7ef"></i>X</span>
                 <span class="chip"><i style="background:#86a2ff"></i>Reddit</span>
-                <span class="chip"><i style="background:#a78bfa"></i>+1000 more</span>
+                <span class="chip"><i style="background:#a78bfa"></i>+ more sites</span>
             </div>
 
             <!-- Loading state -->
