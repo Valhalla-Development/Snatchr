@@ -137,11 +137,11 @@ When disabled, only the API endpoints will be available.
 
 Download videos directly from your Apple device with our iOS Shortcut integration!
 
-**🔗 Download:** [Snatchr iOS Shortcut](https://www.icloud.com/shortcuts/816a21dbfeba4e078397a9d1c48cef4e)
+**🔗 Download:** [Snatchr iOS Shortcut](https://www.icloud.com/shortcuts/f6947179d5534406ad3c57b59ce2815c)
 
 ### ⚙️ Setup Instructions
 
-1. **Configure Server URL:** After downloading, open the shortcut and update the `EXTERNAL_URL` in the dictionary at the top
+1. **Configure Server URL:** After downloading, open the shortcut and set `EXTERNAL_URL` in the dictionary at the top to your own Snatchr server URL
    - Include the `/download` endpoint (e.g., `https://your-server.com/download`)
 
 2. **Codec Compatibility:** For automatic saving to your photo gallery, ensure your Snatchr instance uses compatible codecs:
